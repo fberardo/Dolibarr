@@ -39,6 +39,7 @@ $langs->load('companies');
 $langs->load('bills');
 $langs->load('banks');
 $langs->load('multicurrency');
+$langs->load('customeraccount@customer_account');
 
 $action		= GETPOST('action','alpha');
 $confirm	= GETPOST('confirm');
@@ -760,6 +761,35 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
                     print '<td align="center">&nbsp;</td>';
                     print "</tr>\n";
                 }
+                
+                $sql = "SELECT SUM(amount) FROM " . MAIN_DB_PREFIX . "customer_account_movement as m";
+                $sql .= " , " . MAIN_DB_PREFIX . "customer_account as c";
+                $sql .= " WHERE c.rowid = m.fk_customer_account";
+                $sql .= " AND c.fk_societe = ".$facture->socid;
+
+                $available = 0;
+                $result = $db->query($sql);
+                if ($result) {
+                    $row = $db->fetch_row($result);
+                    $available = $row[0];
+
+                    $db->free($result);
+                }
+                
+                // Disponible en la cuenta
+                print '<tr class="liste_total">';
+                print '<td colspan="3" align="left">'.$langs->trans('CustomerAccountDisponible').'</td>';
+                if (!empty($conf->multicurrency->enabled)) print '<td></td>';
+                if (!empty($conf->multicurrency->enabled)) print '<td></td>';
+                if (!empty($conf->multicurrency->enabled)) print '<td></td>';
+                print '<td colspan="2"></td>';
+                //print '<td align="right"><b>'.price($sign * price2num($total_ttc - $totalrecu - $totalrecucreditnote - $totalrecudeposits,'MT')).'</b></td>';
+                print '<td align="right"><b>'.price($available).'</b></td>';
+                print '<td></td>';
+                if (!empty($conf->multicurrency->enabled)) print '<td>&nbsp;</td>';
+                print '<td>&nbsp;</td>';
+                print "</tr>\n";
+                    
                 print "</table>";
                 //print "</td></tr>\n";
             }
