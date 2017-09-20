@@ -595,7 +595,7 @@ print '</div>'."\n";
 print '</form>'."\n";
 
 
-if ($massaction == 'builddoc' || $action == 'remove_file' || $show_files)
+/*if ($massaction == 'builddoc' || $action == 'remove_file' || $show_files)
 {
     // Show list of available documents
     $urlsource=$_SERVER['PHP_SELF'].'?sortfield='.$sortfield.'&sortorder='.$sortorder;
@@ -610,7 +610,7 @@ if ($massaction == 'builddoc' || $action == 'remove_file' || $show_files)
 else
 {
     print '<br><a name="show_files"></a><a href="'.$_SERVER["PHP_SELF"].'?show_files=1'.$param.'#show_files">'.$langs->trans("ShowTempMassFilesArea").'</a>';
-}
+}*/
 
 
 // End of page

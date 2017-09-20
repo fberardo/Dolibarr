@@ -25,3 +25,4 @@ CustomerAccountCancelButton=Cancelar y volver
 CustomerAccountTotal=Monto Total
 CustomerAccountTotalforthispage=Monto Total de la Página
 CustomerAccountDisponible=Disponible en la cuenta
+CustomerAccountPaiementSuperaSaldoTotalCuenta=El monto total de los pagos supera el saldo de la cuenta

@@ -34,6 +34,7 @@ require_once DOL_DOCUMENT_ROOT.'/compta/paiement/class/paiement.class.php';
 require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
 require_once DOL_DOCUMENT_ROOT.'/compta/bank/class/account.class.php';
 require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
+dol_include_once('/customer_account/class/customeraccountmovement.class.php');
 
 $langs->load('companies');
 $langs->load('bills');
@@ -96,7 +97,7 @@ if (empty($reshook))
 	    $datepaye = dol_mktime(12, 0, 0, GETPOST('remonth'), GETPOST('reday'), GETPOST('reyear'));
 	    $paiement_id = 0;
 	    $totalpayment = 0;
-		$multicurrency_totalpayment = 0;
+            $multicurrency_totalpayment = 0;
 	    $atleastonepaymentnotnull = 0;
 
 	    // Generate payment array and check if there is payment higher than invoice and payment date before invoice date
@@ -142,23 +143,23 @@ if (empty($reshook))
 	            $multicurrency_amountsresttopay[$cursorfacid]=price2num($tmpinvoice->multicurrency_total_ttc - $tmpinvoice->getSommePaiement(1));
 	            if ($multicurrency_amounts[$cursorfacid])
 	            {
-		            // Check amount
-		            if ($multicurrency_amounts[$cursorfacid] && (abs($multicurrency_amounts[$cursorfacid]) > abs($multicurrency_amountsresttopay[$cursorfacid])))
-		            {
-		                $addwarning=1;
-		                $formquestion['text'] = img_warning($langs->trans("PaymentHigherThanReminderToPay")).' '.$langs->trans("HelpPaymentHigherThanReminderToPay");
-		            }
-		            // Check date
-		            if ($datepaye && ($datepaye < $tmpinvoice->date))
-		            {
-		            	$langs->load("errors");
-		                //$error++;
-		                setEventMessages($langs->transnoentities("WarningPaymentDateLowerThanInvoiceDate", dol_print_date($datepaye,'day'), dol_print_date($tmpinvoice->date, 'day'), $tmpinvoice->ref), null, 'warnings');
-		            }
+                        // Check amount
+                        if ($multicurrency_amounts[$cursorfacid] && (abs($multicurrency_amounts[$cursorfacid]) > abs($multicurrency_amountsresttopay[$cursorfacid])))
+                        {
+                            $addwarning=1;
+                            $formquestion['text'] = img_warning($langs->trans("PaymentHigherThanReminderToPay")).' '.$langs->trans("HelpPaymentHigherThanReminderToPay");
+                        }
+                        // Check date
+                        if ($datepaye && ($datepaye < $tmpinvoice->date))
+                        {
+                            $langs->load("errors");
+                            //$error++;
+                            setEventMessages($langs->transnoentities("WarningPaymentDateLowerThanInvoiceDate", dol_print_date($datepaye,'day'), dol_print_date($tmpinvoice->date, 'day'), $tmpinvoice->ref), null, 'warnings');
+                        }
 	            }
 
 	            $formquestion[$i++]=array('type' => 'hidden','name' => $key,  'value' => GETPOST($key, 'int'));
-			}
+		}
 	    }
 
 	    // Check parameters
@@ -190,12 +191,17 @@ if (empty($reshook))
 	        $error++;
 	    }
 		
-		// Check if payments in both currency
-		if ($totalpayment > 0 && $multicurrency_totalpayment > 0)
-		{
-			setEventMessages($langs->transnoentities('ErrorPaymentInBothCurrency'), null, 'errors');
-	        $error++;
-		}
+            // Check if payments in both currency
+            if ($totalpayment > 0 && $multicurrency_totalpayment > 0)
+            {
+                setEventMessages($langs->transnoentities('ErrorPaymentInBothCurrency'), null, 'errors');
+                $error++;
+            }
+            
+            if ($totalpayment > GETPOST('available')) {
+                setEventMessages($langs->transnoentities('CustomerAccountPaiementSuperaSaldoTotalCuenta'), null, 'errors');
+                $error++;
+            }
 	}
 
 	/*
@@ -259,14 +265,14 @@ if (empty($reshook))
 	    if (! $error)
 	    {
 	    	$paiement_id = $paiement->create($user, (GETPOST('closepaidinvoices')=='on'?1:0));
-	    	if ($paiement_id < 0)
+                if ($paiement_id < 0)
 	        {
 	            setEventMessages($paiement->error, $paiement->errors, 'errors');
 	            $error++;
 	        }
 	    }
-
-	    if (! $error)
+            
+            if (! $error)
 	    {
 	    	$label='(CustomerInvoicePayment)';
 	    	if (GETPOST('type') == 2) $label='(CustomerInvoicePaymentBack)';
@@ -277,6 +283,39 @@ if (empty($reshook))
 	            $error++;
 	        }
 	    }
+            
+            if (! $error)
+	    {
+                $sql = "SELECT";
+                $sql.= " a.rowid";
+                $sql.= " FROM ".MAIN_DB_PREFIX."customer_account as a";
+                $sql.= " INNER JOIN ".MAIN_DB_PREFIX."societe as s ON (a.fk_societe = s.rowid)";
+                $sql.= " WHERE s.rowid = ".GETPOST(socid);
+                
+                $resql=$db->query($sql);
+                if (! $resql)
+                {
+                    dol_print_error($db);
+                    exit;
+                }
+
+                $obj = $db->fetch_object($resql);
+                
+                foreach($amounts as $key => $value) {
+                    if (is_numeric($value) && $value <> 0) {
+                        
+                        $customerAccountMovement = new customeraccountmovement($db);
+                        $customerAccountMovement->entity = 1;
+                        $customerAccountMovement->fk_customer_account = $obj->rowid;
+                        $customerAccountMovement->amount = -$value;
+                        $customerAccountMovement->label = 'Pago de Factura con ID ['.$key.'], con fecha: '.dol_print_date($datepaye,'day');
+                        $customerAccountMovement->dateo = $datepaye;
+                        $customerAccountMovement->active = 1;
+
+                        $customerAccountMovement->create($user);
+                    }
+                }
+            }
 
 	    if (! $error)
 	    {
@@ -346,108 +385,172 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 			if (! empty($conf->global->PAYPAL_BANK_ACCOUNT)) $accountid=$conf->global->PAYPAL_BANK_ACCOUNT;
 			$paymentnum=$facture->ref_int;
 		}
+                
+                print "\n".'<script type="text/javascript" language="javascript">';
+		print '$(document).ready(function () {'."\n";
+                print '         function resultAvailable() {
+                
+                                    var lines = $("#payment_form").find("input.amount");
+                                    var result = $("input[name=available]").val();
+                                    lines.each(function(index) {
+                                        amount_value = $(this).val();
+                                        result -= amount_value;
+                                    });
 
+                                    return result;
+                                }'."\n";
+                
+                print '         callForResult();'."\n";
+                        
 		// Add realtime total information
 		if ($conf->use_javascript_ajax)
 		{
-			print "\n".'<script type="text/javascript" language="javascript">';
-			print '$(document).ready(function () {
-            			setPaiementCode();
+                    print '	setPaiementCode();
 
-            			$("#selectpaiementcode").change(function() {
-            				setPaiementCode();
-            			});
+                                $("#selectpaiementcode").change(function() {
+                                    setPaiementCode();
+                                });
 
-            			function setPaiementCode()
-            			{
-            				var code = $("#selectpaiementcode option:selected").val();
+                                function setPaiementCode()
+                                {
+                                    var code = $("#selectpaiementcode option:selected").val();
 
-                            if (code == \'CHQ\' || code == \'VIR\')
-            				{
-            					if (code == \'CHQ\')
-			                    {
-			                        $(\'.fieldrequireddyn\').addClass(\'fieldrequired\');
-			                    }
-            					if ($(\'#fieldchqemetteur\').val() == \'\')
-            					{
-            						var emetteur = ('.$facture->type.' == 2) ? \''.dol_escape_js(dol_escape_htmltag($conf->global->MAIN_INFO_SOCIETE_NOM)).'\' : jQuery(\'#thirdpartylabel\').val();
-            						$(\'#fieldchqemetteur\').val(emetteur);
-            					}
-            				}
-            				else
-            				{
-            					$(\'.fieldrequireddyn\').removeClass(\'fieldrequired\');
-            					$(\'#fieldchqemetteur\').val(\'\');
-            				}
-            			}
+                                    if (code == \'CHQ\' || code == \'VIR\')
+                                    {
+                                        if (code == \'CHQ\')
+                                        {
+                                            $(\'.fieldrequireddyn\').addClass(\'fieldrequired\');
+                                        }
+                                        if ($(\'#fieldchqemetteur\').val() == \'\')
+                                        {
+                                            var emetteur = ('.$facture->type.' == 2) ? \''.dol_escape_js(dol_escape_htmltag($conf->global->MAIN_INFO_SOCIETE_NOM)).'\' : jQuery(\'#thirdpartylabel\').val();
+                                            $(\'#fieldchqemetteur\').val(emetteur);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        $(\'.fieldrequireddyn\').removeClass(\'fieldrequired\');
+                                        $(\'#fieldchqemetteur\').val(\'\');
+                                    }
+                                }
 
-						function _elemToJson(selector)
-						{
-							var subJson = {};
-							$.map(selector.serializeArray(), function(n,i)
-							{
-								subJson[n["name"]] = n["value"];
-							});
-							
-							return subJson;
-						}
-						function callForResult(imgId)
-						{
-							var json = {};
-							var form = $("#payment_form");
+                                function _elemToJson(selector)
+                                {
+                                    var subJson = {};
+                                    $.map(selector.serializeArray(), function(n,i)
+                                    {
+                                        subJson[n["name"]] = n["value"];
+                                    });
 
-							json["invoice_type"] = $("#invoice_type").val();
-            				json["amountPayment"] = $("#amountpayment").attr("value");
-							json["amounts"] = _elemToJson(form.find("input.amount"));
-							json["remains"] = _elemToJson(form.find("input.remain"));
+                                    return subJson;
+                                }
 
-							if (imgId != null) {
-								json["imgClicked"] = imgId;
-							}
+                                function callForResult(imgId)
+                                {
+                                    var json = {};
+                                    var form = $("#payment_form");
 
-							$.post("'.DOL_URL_ROOT.'/compta/ajaxpayment.php", json, function(data)
-							{
-								json = $.parseJSON(data);
+                                    json["invoice_type"] = $("#invoice_type").val();
+                                    json["amountPayment"] = $("#amountpayment").attr("value");
+                                    json["amounts"] = _elemToJson(form.find("input.amount"));
+                                    json["remains"] = _elemToJson(form.find("input.remain"));
 
-								form.data(json);
+                                    if (imgId != null) 
+                                    {
+                                        json["imgClicked"] = imgId;
+                                    }
 
-								for (var key in json)
-								{
-									if (key == "result")	{
-										if (json["makeRed"]) {
-											$("#"+key).addClass("error");
-										} else {
-											$("#"+key).removeClass("error");
-										}
-										json[key]=json["label"]+" "+json[key];
-										$("#"+key).text(json[key]);
-									} else {console.log(key);
-										form.find("input[name*=\""+key+"\"]").each(function() {
-											$(this).attr("value", json[key]);
-										});
-									}
-								}
-							});
-						}
-						$("#payment_form").find("input.amount").change(function() {
-							callForResult();
-						});
-						$("#payment_form").find("input.amount").keyup(function() {
-							callForResult();
-						});
-			';
+                                    $.post("'.DOL_URL_ROOT.'/compta/ajaxpayment.php", json, function(data)
+                                    {
+                                        json = $.parseJSON(data);
 
-			print '	});'."\n";
-			if (!empty($conf->use_javascript_ajax)){
+                                        form.data(json);
+
+                                        for (var key in json)
+                                        {
+                                            if (key == "result")
+                                            {
+                                                if (json["makeRed"])
+                                                {
+                                                    $("#"+key).addClass("error");
+                                                }
+                                                else
+                                                {
+                                                    $("#"+key).removeClass("error");
+                                                }
+                                                json[key]=json["label"]+" "+json[key];
+                                                $("#"+key).text(json[key]);
+                                            } else {console.log(key);
+                                                form.find("input[name*=\""+key+"\"]").each(function() {
+                                                    $(this).attr("value", json[key]);
+                                                });
+                                            }
+                                        }
+                                    });
+
+                                    var lines = $("#payment_form").find("input.amount");
+                                    var available = $("input[name=available]").val();
+                                    lines.each(function(index) {
+                                        amount_value = $(this).val();
+                                        available -= amount_value;
+                                    });
+                                    
+                                    result = resultAvailable();
+                                    if (result >= 0) {
+                                        $("#result_available").text("( " + available.toFixed(2) + " )");
+                                        //$("#result_available").removeClass("error");
+                                        $("#result_available").css( "color", "");
+                                    } else {
+                                        $("#result_available").text("( NO CUBRE )");
+                                        //$("#result_available").addClass("error");
+                                        $("#result_available").css( "color", "red");
+                                    }
+                                }
+
+                                $("#payment_form").find("input.amount").change(function() {
+                                        callForResult();
+                                });
+
+                                $("#payment_form").find("input.amount").keyup(function() {
+                                        callForResult();
+                                });
+                        
 				//Add js for AutoFill
-				print ' $(document).ready(function () {';
-				print ' 	$(".AutoFillAmout").on(\'click touchstart\', function(){
-								$("input[name="+$(this).data(\'rowname\')+"]").val($(this).data("value")).trigger("change");
-							});';
-				print '	});'."\n";
-			}
-			print '	</script>'."\n";
-		}
+				$(".AutoFillAmout").on(\'click touchstart\', function(){
+                                        $("input[name="+$(this).data(\'rowname\')+"]").val($(this).data("value")).trigger("change");
+				});
+                                
+				//Add js for AutoFill All
+				$(".AutoFillAmoutAll").on(\'click touchstart\', function() {
+                                                
+                                        var lines = $("#payment_form").find("input.amount");
+                                        var available = $("input[name=available]").val();
+                                        lines.each(function(index) {
+                                            remain_name = $(this).attr("name").replace(/\amount_/g, "remain_");
+                                            remain_value = $("input[name=" + remain_name + "]").val();
+
+                                            console.log("quedan antes: " + available);
+                                            console.log("hay que restar: " + remain_value);
+
+                                            if (available - remain_value >= 0) {
+                                                available -= remain_value;
+                                                console.log("Cubre. Quedan ahora: " + available);
+
+                                                $(this).val($("input[name=" + remain_name + "]").val());
+                                            } else {
+                                                console.log("No cubre. Quedan: " + available);
+                                                
+                                                // Si comentamos esta línea va a intentar seguir buscando en los siguientes, hasta el final
+                                                return false;
+                                            }
+                                        });
+
+                                        callForResult();
+                                });';
+                }
+		
+                print '	});'."\n";
+                print '	</script>'."\n";
 
 		print '<form id="payment_form" name="add_paiement" action="'.$_SERVER["PHP_SELF"].'" method="POST">';
 		print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
@@ -742,6 +845,7 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
                     $totalrecudeposits+=$deposits;
                     $i++;
                 }
+                $resta = $total_ttc - $totalrecu - $totalrecucreditnote - $totalrecudeposits;
                 if ($i > 1)
                 {
                     // Print total
@@ -755,7 +859,7 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
                     if ($totalrecucreditnote) print '+'.price($totalrecucreditnote);
                     if ($totalrecudeposits) print '+'.price($totalrecudeposits);
                     print '</b></td>';
-                    print '<td align="right"><b>'.price($sign * price2num($total_ttc - $totalrecu - $totalrecucreditnote - $totalrecudeposits,'MT')).'</b></td>';
+                    print '<td align="right"><b>'.price($sign * price2num($resta,'MT')).'</b></td>';
                     print '<td align="right" id="result" style="font-weight: bold;"></td>';
 					if (!empty($conf->multicurrency->enabled)) print '<td align="right" id="multicurrency_result" style="font-weight: bold;"></td>';
                     print '<td align="center">&nbsp;</td>';
@@ -775,17 +879,41 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 
                     $db->free($result);
                 }
+                print '<input type="hidden" name="available" value="'.$available.'">';
                 
                 // Disponible en la cuenta
+                print '<tr height="30px">';
+                print '<td colspan="3"></td>';
+                if (!empty($conf->multicurrency->enabled)) print '<td></td>';
+                if (!empty($conf->multicurrency->enabled)) print '<td></td>';
+                if (!empty($conf->multicurrency->enabled)) print '<td></td>';
+                print '<td colspan="4"></td>';
+                if (!empty($conf->multicurrency->enabled)) print '<td>&nbsp;</td>';
+                print '<td>&nbsp;</td>';
+                print "</tr>\n";
+                
                 print '<tr class="liste_total">';
-                print '<td colspan="3" align="left">'.$langs->trans('CustomerAccountDisponible').'</td>';
+                print '<td colspan="3">&nbsp;</td>';
                 if (!empty($conf->multicurrency->enabled)) print '<td></td>';
                 if (!empty($conf->multicurrency->enabled)) print '<td></td>';
                 if (!empty($conf->multicurrency->enabled)) print '<td></td>';
-                print '<td colspan="2"></td>';
-                //print '<td align="right"><b>'.price($sign * price2num($total_ttc - $totalrecu - $totalrecucreditnote - $totalrecudeposits,'MT')).'</b></td>';
-                print '<td align="right"><b>'.price($available).'</b></td>';
-                print '<td></td>';
+                print '<td align="right">'.$langs->trans('CustomerAccountDisponible').'</td>';
+                print '<td align="right"><b>'.price($sign * $available).'</b></td>';
+                
+                print '<td align="right">';
+                //if ($available >= $resta) {
+                    if ($action != 'add_paiement') {
+                        if (!empty($conf->use_javascript_ajax)) {
+                            print img_picto("Auto fill All", 'rightarrow', "class='AutoFillAmoutAll'");
+                        }
+                    }
+                //}
+                print '</td>';
+                
+                //print '<td align="right" id="result_available"><b>( '.price($sign * $available).' )</b></td>';
+                // Esto lo hace la función callForResult()
+                print '<td align="right" id="result_available"></td>';
+                
                 if (!empty($conf->multicurrency->enabled)) print '<td>&nbsp;</td>';
                 print '<td>&nbsp;</td>';
                 print "</tr>\n";
