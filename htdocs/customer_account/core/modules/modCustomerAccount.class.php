@@ -145,7 +145,7 @@ class modCustomerAccount extends DolibarrModules
 		// 'thirdparty'       to add a tab in third party view
 		// 'user'             to add a tab in user view
 		//$this->tabs = array();
-                $this->tabs = array('thirdparty:+customeraccountmovement:CustomerAccountTabName:customeraccount@customer_account:/customer_account/customeraccountmovement_list.php?id=__ID__');
+                $this->tabs = array('thirdparty:+customeraccountmovement:CustomerAccountTabName:customeraccount@customer_account:$object->client==3:/customer_account/customeraccountmovement_list.php?socid=__ID__');
                 // popula la tabla llx_const
 
 		if (! isset($conf->mymodule) || ! isset($conf->mymodule->enabled))

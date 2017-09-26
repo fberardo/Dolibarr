@@ -489,27 +489,26 @@ if (empty($reshook))
 
                 $result = $object->create($user);
                 
-				if ($result >= 0)
+		if ($result >= 0)
                 {
                     
-                    // account
-                    $customerAccount = new customeraccount($db);
-                    
-                    $customerAccount->entity = 1;
-                    $customerAccount->label = 'Cuenta tercero: '.$object->name;
-                    $customerAccount->fk_societe = $object->id;
-                    $customerAccount->active = 1;
-                    
-                    $customerAccount->create($user);
-                    
-                    /*public $entity;
-                    public $datec = '';
-                    public $tms = '';
-                    public $label;
-                    public $fk_societe;
-                    public $fk_user_author;
-                    public $fk_user_modif;
-                    public $active;*/
+                    if (($object->client == 2 || $object->client == 3)) { // 2. Cliente Potencial; 3. Cliente
+                        // account
+                        $customerAccount = new customeraccount($db);
+
+                        $customerAccount->entity = 1;
+                        $customerAccount->label = 'Cuenta tercero: '.$object->name;
+                        $customerAccount->fk_societe = $object->id;
+                        $customerAccount->active = 1;
+
+                        $result = $customerAccount->create($user);
+                        
+                        if (! $result >= 0) {
+                            $error = $customerAccount->error;
+                            $errors = $customerAccount->errors;
+                        }
+                            
+                    }
                     
                     if ($object->particulier)
                     {
@@ -521,13 +520,13 @@ if (empty($reshook))
                         }
                     }
 
-					// Customer categories association
-					$custcats = GETPOST( 'custcats', 'array' );
-					$object->setCategories($custcats, 'customer');
+                    // Customer categories association
+                    $custcats = GETPOST( 'custcats', 'array' );
+                    $object->setCategories($custcats, 'customer');
 
-					// Supplier categories association
-					$suppcats = GETPOST('suppcats', 'array');
-					$object->setCategories($suppcats, 'supplier');
+                    // Supplier categories association
+                    $suppcats = GETPOST('suppcats', 'array');
+                    $object->setCategories($suppcats, 'supplier');
 
                     // Logo/Photo save
                     $dir     = $conf->societe->multidir_output[$conf->entity]."/".$object->id."/logos/";
