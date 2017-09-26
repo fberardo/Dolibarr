@@ -48,6 +48,7 @@ require_once DOL_DOCUMENT_ROOT . '/core/lib/invoice.lib.php';
 require_once DOL_DOCUMENT_ROOT . '/core/lib/functions2.lib.php';
 require_once DOL_DOCUMENT_ROOT . '/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT . '/core/class/extrafields.class.php';
+require_once DOL_DOCUMENT_ROOT . '/customer_account/class/customeraccount.class.php';
 if (! empty($conf->commande->enabled))
 	require_once DOL_DOCUMENT_ROOT . '/commande/class/commande.class.php';
 if (! empty($conf->projet->enabled)) {
@@ -62,6 +63,7 @@ $langs->load('compta');
 $langs->load('products');
 $langs->load('banks');
 $langs->load('main');
+$langs->load('customeraccount@customer_account');
 if (!empty($conf->incoterm->enabled)) $langs->load('incoterm');
 if (! empty($conf->margin->enabled))
 	$langs->load('margins');
@@ -394,7 +396,42 @@ if (empty($reshook))
 			}
 		}
 	}
-
+        
+        else if ($action == "setavailablediscountcustomeraccount" && $user->rights->facture->creer) {
+            /*$result = $object->insert_discount($_POST["remise_id"]);
+            if ($result < 0) {
+		setEventMessages($object->error, $object->errors, 'errors');
+            }*/
+            $desc = $langs->trans('CustomerAccountDiscountDescription');
+            
+            // We create a discount line
+            $discount = new DiscountAbsolute($db);
+            
+            $discount->fk_soc = GETPOST('socid','int');
+            
+            //$discount->amount_ht = abs($lines[$i]->total_ht);
+            //$discount->amount_tva = abs($lines[$i]->total_tva);
+            //$discount->amount_ttc = abs($lines[$i]->total_ttc);
+            //$discount->tva_tx = $lines[$i]->tva_tx;
+            $discount->amount_ht = GETPOST('availablediscountcustomeraccount');
+            $discount->amount_tva = 0; // amount_ht * % IVA
+            $discount->amount_ttc = GETPOST('availablediscountcustomeraccount'); // amount_ht + amount_tva (amount_ht * % IVA)
+            $discount->tva_tx = 0; // % IVA
+            
+            $discount->fk_user = $user->id;
+            $discount->description = $desc;
+            $discount->fk_facture_source = GETPOST('facid','int');
+            
+            $discountid = $discount->create($user);
+            if ($discountid > 0) {
+                    $result = $object->insert_discount($discountid); // This include link_to_invoice
+            } else {
+                    setEventMessages($discount->error, $discount->errors, 'errors');
+                    $error ++;
+                    //break;
+            }
+        }
+        
 	else if ($action == 'setref_client' && $user->rights->facture->creer)
 	{
 		$object->fetch($id);
@@ -2423,7 +2460,19 @@ if ($action == 'create')
 		else
 			print $langs->trans("CompanyHasNoAbsoluteDiscount");
 		print ' <a href="' . DOL_URL_ROOT . '/comm/remx.php?id=' . $soc->id . '&backtopage=' . urlencode($_SERVER["PHP_SELF"] . '?socid=' . $soc->id . '&action=' . $action . '&origin=' . GETPOST('origin') . '&originid=' . GETPOST('originid')) . '">(' . $langs->trans("EditGlobalDiscounts") . ')</a>';
-		print '.';
+		print '. ';
+                print '<br>';
+                
+                $customeraccount = new customeraccount($db);
+                
+                $saldo = $customeraccount->getSaldo($socid);
+                
+                // TOD Pruebas: 10 % del saldo.
+                if ($saldo > 0) {
+                    print $langs->trans("CustomerAccountHasDiscount", $saldo / 10);
+                }
+                print '. ';
+                
 		print '</td></tr>';
 	}
 
@@ -3123,6 +3172,34 @@ else if ($id > 0 || ! empty($ref))
 		else
 			print '. ';
 	}
+        
+        $customeraccount = new customeraccount($db);
+                
+        $saldo = $customeraccount->getSaldo($soc->id);
+        
+        // TODO
+        // Verificar que no haya sido aplicado.
+        // Hay que ver la forma de poder hacerlo, ya que no basta con:
+        //$sql.=" WHERE (fk_facture_line IS NOT NULL";	// Not used as absolute simple discount
+        //$sql.=" OR fk_facture IS NOT NULL)"; 	// Not used as credit note and not used as deposit
+        //$sql.=" AND fk_facture_source = ".$this->fk_facture_source;
+                
+        // TODO Pruebas: 10 % del saldo.
+        if ($saldo > 0) {
+            $availablediscountcustomeraccount = $saldo / 10;
+            print '<form method="post" action="'.$_SERVER["PHP_SELF"].'">';
+            print '<br>'.$langs->trans("CustomerAccountHasDiscount", price($availablediscountcustomeraccount,0,$langs,0,0,-1,$conf->currency));
+            print '     <input type="hidden" name="action" value="setavailablediscountcustomeraccount">';
+            print '     <input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+            print '     <input type="hidden" name="facid" value="' . $id . '">' . "\n";
+            if ($soc->id > 0) print '<input type="hidden" name="socid" value="' . $soc->id . '">' . "\n";
+            print '     <div class="inline-block">';
+            print '         <input type="hidden" name="availablediscountcustomeraccount" value="'.$availablediscountcustomeraccount.'">';
+            print '         <input type="submit" class="button" value="'.dol_escape_htmltag($langs->trans("UseLine")).'"';
+            print '     </div>';
+            print '</form>';
+        }
+                
 	// if ($object->statut == 0 && $object->type != 2 && $object->type != 3)
 	// {
 	// if (! $absolute_discount && ! $absolute_creditnote) print '<br>';
