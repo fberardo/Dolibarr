@@ -1465,6 +1465,42 @@ class Societe extends CommonObject
                     $this->error = $this->db->lasterror();
                 }
             }
+            
+            // Remove customer account and customer account movements if exists
+            if (! $error)
+            {
+                // Select customer_account_id
+                $sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."customer_account";
+                $sql.= " WHERE fk_societe = " . $id;
+                $resql = $this->db->query($sql);
+                
+                if ($resql) {
+                    $num = $this->db->num_rows($resql);
+                    if ($num > 0) { // Existe la cuenta del cliente
+                    
+                        $obj = $this->db->fetch_object($resql);
+                        $customer_account = $obj->rowid;
+                        
+                        // Eliminar los movimientos de la cuenta
+                        $sql = "DELETE FROM ".MAIN_DB_PREFIX."customer_account_movement";
+                        $sql.= " WHERE fk_customer_account = " . $customer_account;
+                        dol_syslog(get_class($this)."::delete", LOG_DEBUG);
+                        if (! $this->db->query($sql)) {
+                            $error++;
+                            $this->error = $this->db->lasterror();
+                        }
+                        
+                        // Eliminar la cuenta
+                        $sql = "DELETE FROM ".MAIN_DB_PREFIX."customer_account";
+                        $sql.= " WHERE rowid = " . $customer_account;
+                        dol_syslog(get_class($this)."::delete", LOG_DEBUG);
+                        if (! $this->db->query($sql)) {
+                            $error++;
+                            $this->error = $this->db->lasterror();
+                        }
+                    }
+                }
+            }
 
             // Removed extrafields
             if ((! $error) && (empty($conf->global->MAIN_EXTRAFIELDS_DISABLED))) // For avoid conflicts if trigger used
@@ -1489,7 +1525,7 @@ class Societe extends CommonObject
                     $this->error = $this->db->lasterror();
                 }
             }
-
+            
             if (! $error)
             {
                 $this->db->commit();
