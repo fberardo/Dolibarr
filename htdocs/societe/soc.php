@@ -492,7 +492,14 @@ if (empty($reshook))
 		if ($result >= 0)
                 {
                     
-                    if (($object->client == 2 || $object->client == 3)) { // 2. Cliente Potencial; 3. Cliente
+                    //if (($object->client == 2 || $object->client == 3)) { // 2. Cliente Potencial; 3. Cliente
+                    /*
+                     * 2. Cliente potencial
+                     * 3. Cliente potencial/Cliente
+                     * 1. Cliente
+                     * 0. Ni cliente, ni cliente potencial
+                     */
+                    if ($object->client != 0) { // 0. Ni cliente, ni cliente potencial,  
                         // account
                         $customerAccount = new customeraccount($db);
 

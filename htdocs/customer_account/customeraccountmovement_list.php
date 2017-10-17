@@ -50,6 +50,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/company.lib.php';
 //dol_include_once('/customer_account/class/customeraccountmovement.class.php');
 require_once DOL_DOCUMENT_ROOT.'/customer_account/class/customeraccountmovement.class.php';
+require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
 
 // Load traductions files requiredby by page
 $langs->load("customeraccount@customer_account");
@@ -384,7 +385,7 @@ $hiddenobjvaluesnew='&amp;entity=1'.
 	$newbutton.='<a class="butAction" href="customeraccountmovement_card.php?action=create&socid='.$socid.$hiddenobjvaluesnew.'">'.$langs->trans("CustomerAccountNewCustomerAccountMovement").'</a>';
 //}
 
-print '<form method="POST" id="searchFormList" action="'.$_SERVER["PHP_SELF"].'">';
+print '<form method="POST" id="searchFormList" action="'.$_SERVER['PHP_SELF'].'?socid='.$socid.'">';
 if ($optioncss != '') print '<input type="hidden" name="optioncss" value="'.$optioncss.'">';
 print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
 print '<input type="hidden" name="formfilteraction" id="formfilteraction" value="list">';
@@ -553,8 +554,6 @@ while ($i < min($num, $limit))
                 {
                     print '<td>' . $obj->$key2 . '</td>';
                 }
-                
-                
             }
         }
     	// Extra fields
@@ -629,6 +628,96 @@ if (isset($totalarray['totalhtfield']))
     print '</tr>';
 }
 
+/* Saldo de la cuenta del cliente */
+$saldocuenta = 0;
+$sql = "SELECT SUM(";
+$sql .= "t.amount)";
+$sql.= " FROM ".MAIN_DB_PREFIX."customer_account_movement as t";
+$sql.= " INNER JOIN ".MAIN_DB_PREFIX."customer_account as a ON (t.fk_customer_account = a.rowid)";
+$sql.= " INNER JOIN ".MAIN_DB_PREFIX."societe as s ON (a.fk_societe = s.rowid)";
+$sql.= " WHERE s.rowid = ".$socid;
+$result = $db->query($sql);
+if ($result) {
+    $row = $db->fetch_row($result);
+    $saldocuenta = $row[0];
+    $db->free($result);
+}
+
+/* Total a pagar en facturas pendientes */
+$restapagarfacturas = 0;
+$sql = 'SELECT f.rowid as facid, f.facnumber, f.total_ttc, f.multicurrency_code, f.multicurrency_total_ttc, f.type, ';
+$sql.= ' f.datef as df, f.fk_soc as socid';
+$sql.= ' FROM '.MAIN_DB_PREFIX.'facture as f';
+if(!empty($conf->global->FACTURE_PAYMENTS_ON_DIFFERENT_THIRDPARTIES_BILLS)) {
+    $sql.= ' LEFT JOIN '.MAIN_DB_PREFIX.'societe as s ON (f.fk_soc = s.rowid)';
+}
+$sql.= ' WHERE f.entity = '.$conf->entity;
+$sql.= ' AND (f.fk_soc = '.$socid;
+if(!empty($conf->global->FACTURE_PAYMENTS_ON_DIFFERENT_THIRDPARTIES_BILLS) && !empty($facture->thirdparty->parent)) {
+    $sql.= ' OR f.fk_soc IN (SELECT rowid FROM '.MAIN_DB_PREFIX.'societe WHERE parent = '.$facture->thirdparty->parent.')';
+}
+$sql.= ') AND f.paye = 0';
+$sql.= ' AND f.fk_statut = 1'; // Statut=0 => not validated, Statut=2 => canceled
+/*
+if ($facture->type != 2)
+{
+    $sql .= ' AND type IN (0,1,3,5)';	// Standard invoice, replacement, deposit, situation
+}
+else
+{
+    $sql .= ' AND type = 2';		// If paying back a credit note, we show all credit notes
+}
+*/
+$resql = $db->query($sql);
+if ($resql)
+{
+    $num = $db->num_rows($resql);
+    if ($num > 0)
+    {
+        $i = 0;
+        $total=0;
+        $totalrecu=0;
+        $totalrecucreditnote=0;
+        $totalrecudeposits=0;
+
+        while ($i < $num)
+        {
+            $objp = $db->fetch_object($resql);
+            $invoice=new Facture($db);
+            $invoice->fetch($objp->facid);
+            $paiement = $invoice->getSommePaiement();
+            $creditnotes=$invoice->getSumCreditNotesUsed();
+            $deposits=$invoice->getSumDepositsUsed();
+            $alreadypayed=price2num($paiement + $creditnotes + $deposits,'MT');
+            $remaintopay=price2num($invoice->total_ttc - $paiement - $creditnotes - $deposits,'MT'); 
+            
+            $total+=$objp->total;
+            $total_ttc+=$objp->total_ttc;
+            $totalrecu+=$paiement;
+            $totalrecucreditnote+=$creditnotes;
+            $totalrecudeposits+=$deposits;
+            
+            $i++;
+        }
+        $restapagarfacturas = $total_ttc - $totalrecu - $totalrecucreditnote - $totalrecudeposits;
+    }
+}
+
+/* Saldo cliente */
+$saldocliente = ($saldocuenta - $restapagarfacturas);
+$pintarcolor = "black"; // green?
+$descripcion = "(al día)";
+if ($saldocliente < 0) {
+    $pintarcolor = "red";
+    $descripcion = "(debe)";
+    $saldocliente = $saldocliente * (-1); // (para que se vea positivo, sin el signo)
+} else if ($saldocliente > 0) {
+    $pintarcolor = "green";
+    $descripcion = "(a favor)";
+} // else $saldocliente == 0
+
+print '</tr>';
+
 $db->free($resql);
 
 $parameters=array('arrayfields'=>$arrayfields, 'sql'=>$sql);
@@ -636,6 +725,27 @@ $reshook=$hookmanager->executeHooks('printFieldListFooter',$parameters);    // N
 print $hookmanager->resPrint;
 
 print '</table>'."\n";
+
+
+print '<table class="tagtable liste">'."\n";
+// Fields title
+print '<tr class="liste_titre">';
+print '<th class="liste_titre"></th>';
+print '<th class="liste_titre">'.$langs->trans("CustomerAccountSaldoCuentaCorriente").'</th>';
+print '<th class="liste_titre">'.$langs->trans("CustomerAccountRestaPagarFacturas").'</th>';
+print '<th class="liste_titre">'.$langs->trans("CustomerAccountSaldoCliente").'</th>';
+print '</tr>';
+// Row values
+print '<tr class="liste_titre">';
+print '<td>'.$langs->trans("CustomerAccountBalanceCuentadelCliente").'</td>';
+print '<td><span style="font-weight:bold">'.price($saldocuenta).'</font></span></td>';
+print '<td><span style="font-weight:bold"><font color="red">'.price($restapagarfacturas).'</font></span></td>';
+print '<td><span style="font-weight:bold"><font color="'.$pintarcolor.'">'.price($saldocliente).' ' .$descripcion. '</font></span></td>';
+
+print '</tr>';
+print '</table>'."\n";
+
+
 print '</div>'."\n";
 
 print '</form>'."\n";
