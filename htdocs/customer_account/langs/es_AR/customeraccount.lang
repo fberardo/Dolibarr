@@ -28,3 +28,8 @@ CustomerAccountDisponible=Disponible en la cuenta
 CustomerAccountPaiementSuperaSaldoTotalCuenta=El monto total de los pagos supera el saldo de la cuenta
 CustomerAccountHasDiscount=Este cliente tiene descuento por saldo a favor de: <b>%s</b>
 CustomerAccountDiscountDescription=Descuento por Saldo a Favor
+CustomerAccountBalanceCuentadelCliente=Balance Cuenta del Cliente
+CustomerAccountSaldoCuentaCorriente=Saldo Cuenta Corriente
+CustomerAccountRestaPagarFacturas=Resta Pagar (Facturas)
+CustomerAccountSaldoCliente=Saldo Cliente
+

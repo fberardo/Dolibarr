@@ -669,30 +669,6 @@ class customeraccount extends CommonObject
 
 		
 	}
-        
-        public function getSaldo($socid) {
-            $sql= " SELECT SUM(t.amount) as saldo";
-            $sql.= " FROM ".MAIN_DB_PREFIX."customer_account_movement as t";
-
-            $sql.= " INNER JOIN ".MAIN_DB_PREFIX."customer_account as a ON (t.fk_customer_account = a.rowid)";
-            $sql.= " INNER JOIN ".MAIN_DB_PREFIX."societe as s ON (a.fk_societe = s.rowid)";
-            
-            // TODO para pruebas :: Descomentar!
-            //$sql.= " WHERE s.rowid = ".$socid;
-            
-            $this->db->begin();
-
-            $resql = $this->db->query($sql);
-            if (!$resql) {
-		$error ++;
-		$this->errors[] = 'Error ' . $this->db->lasterror();
-		dol_syslog(__METHOD__ . ' ' . implode(',', $this->errors), LOG_ERR);
-            } else {
-                $result = $this->db->fetch_object($resql);
-                return (!empty($result->saldo) ? $result->saldo : 0);
-            }
-        
-        }
 
 }
 
