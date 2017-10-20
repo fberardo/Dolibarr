@@ -150,6 +150,10 @@ if (is_array($extrafields->attribute_label) && count($extrafields->attribute_lab
     }
 }
 
+$permtoread = $user->rights->customeraccount->customeraccountmovement->read;
+$permtodelete = $user->rights->customeraccount->customeraccountmovement->delete;
+$permtowrite = $user->rights->customeraccount->customeraccountmovement->write;
+
 
 /*******************************************************************
 * ACTIONS
@@ -188,8 +192,6 @@ if (empty($reshook))
     // Mass actions
     $objectclass='Skeleton';
     $objectlabel='Skeleton';
-    $permtoread = $user->rights->customeraccountmovement->read;
-    $permtodelete = $user->rights->customeraccountmovement->delete;
     $uploaddir = $conf->customeraccountmovement->dir_output;
     //include DOL_DOCUMENT_ROOT.'/core/actions_massactions.inc.php';
 }
@@ -324,7 +326,7 @@ if (! $resql)
 $num = $db->num_rows($resql);
 
 // Direct jump if only one record found
-if ($num == 1 && ! empty($conf->global->MAIN_SEARCH_DIRECT_OPEN_IF_ONLY_ONE) && $search_all)
+if ($num == 1 && ! empty($conf->global->MAIN_SEARCH_DIRECT_OPEN_IF_ONLY_ONE) && $search_all && $permtoread)
 {
     $obj = $db->fetch_object($resql);
     
@@ -333,6 +335,7 @@ if ($num == 1 && ! empty($conf->global->MAIN_SEARCH_DIRECT_OPEN_IF_ONLY_ONE) && 
     '&amp;active='.$obj->active;
     
     header("Location: ".DOL_URL_ROOT.'/customer_account/customeraccountmovement_card.php?id='.$obj->rowid.'&socid='.$socid.$hiddenobjvaluesedit);
+    
     exit;
 }
 
@@ -380,10 +383,10 @@ $hiddenobjvaluesnew='&amp;entity=1'.
         '&amp;fk_customer_account='.$obj2->rowid.
         '&amp;active=1';
 
-//if ($user->rights->banque->configurer)
-//{
-	$newbutton.='<a class="butAction" href="customeraccountmovement_card.php?action=create&socid='.$socid.$hiddenobjvaluesnew.'">'.$langs->trans("CustomerAccountNewCustomerAccountMovement").'</a>';
-//}
+if ($permtowrite)
+{
+    $newbutton.='<a class="butAction" href="customeraccountmovement_card.php?action=create&socid='.$socid.$hiddenobjvaluesnew.'">'.$langs->trans("CustomerAccountNewCustomerAccountMovement").'</a>';
+}
 
 print '<form method="POST" id="searchFormList" action="'.$_SERVER['PHP_SELF'].'?socid='.$socid.'">';
 if ($optioncss != '') print '<input type="hidden" name="optioncss" value="'.$optioncss.'">';
@@ -539,16 +542,45 @@ while ($i < min($num, $limit))
                     '&amp;fk_customer_account='.$obj->fk_customer_account.
                     '&amp;active='.$obj->active;
     
-                    //header("Location: ".DOL_URL_ROOT.'/customer_account/customeraccountmovement_card.php?id='.$id);
-                    print '<td align="left" class="nowrap">';
-                    print "<a href=\"customeraccountmovement_card.php?id=".$obj->rowid.'&socid='.$socid.$hiddenobjvaluesview.'">'.img_object($langs->trans("CustomerAccountShowCustomerAccountMovement").': '.$obj->rowid, 'account', 'class="classfortooltip"').' '.$obj->rowid."</a> &nbsp; ";
-                    print '</td>';
+                    if ($permtoread)
+                    {
+                        print '<td align="left" class="nowrap">';
+                        print "<a href=\"customeraccountmovement_card.php?id=".$obj->rowid.'&socid='.$socid.$hiddenobjvaluesview.'">'.img_object($langs->trans("CustomerAccountShowCustomerAccountMovement").': '.$obj->rowid, 'account', 'class="classfortooltip"').' '.$obj->rowid."</a> &nbsp; ";
+                        print '</td>';
+                    }
+                    else
+                    {
+                        print '<td align="left" class="nowrap">';
+                        print img_object('', 'account', '', false, 0, 1).' '.$obj->rowid."&nbsp;";
+                        print '</td>';
+                    }
                 }
                 else if ($key2 == 'amount')
                 {
                     print '<td align="right" style="padding-right: 30px">' . price($obj->$key2) . '</td>';
                     $totalarray['totalht'] += $obj->$key2;
                     if (!$i) $totalarray['totalhtfield'] = $totalarray['nbfield'];
+                }
+                else if ($key2 == 'label')
+                {
+                    //Pago de Factura ID['.$key.']
+                    if (substr($obj->$key2,0,19) == 'Pago de Factura ID[')
+                    {
+                        $cursorfacid = substr($obj->$key2,19, dol_strlen($obj->$key2)-19-1);
+                        $facture = new Facture($db);
+                        $result = $facture->fetch($cursorfacid);
+
+                        if ($result >= 0)
+                        {
+                            
+                        }
+                        
+                        print '<td>Pago de Factura ' . $facture->getNomUrl(1,'') . "</td>";
+                    }
+                    else 
+                    {
+                        print '<td>' . $obj->$key2 . '</td>';
+                    }
                 }
                 else
                 {
@@ -592,14 +624,17 @@ while ($i < min($num, $limit))
         '&amp;fk_customer_account='.$obj->fk_customer_account.
         '&amp;active='.$obj->active;
         
-        print '<a href="customeraccountmovement_card.php?action=edit&socid='.$socid.'&amp;id='.$obj->rowid.'&amp;page='.$page.$hiddenobjvaluesedit.'">';
-        print img_edit();
-        print '</a>';
-
-        print '<a href="customeraccountmovement_card.php?action=delete&socid='.$socid.'&amp;id='.$obj->rowid.'&amp;page='.$page.'">';
-        print img_delete();
-        print '</a>';
+        if ($permtowrite) {
+            print '<a href="customeraccountmovement_card.php?action=edit&socid='.$socid.'&amp;id='.$obj->rowid.'&amp;page='.$page.$hiddenobjvaluesedit.'">';
+            print img_edit();
+            print '</a>';
+        }
         
+        if ($permtodelete) {
+            print '<a href="customeraccountmovement_card.php?action=delete&socid='.$socid.'&amp;id='.$obj->rowid.'&amp;page='.$page.'">';
+            print img_delete();
+            print '</a>';
+        }
         
 	print '</td>';
         if (! $i) $totalarray['nbfield']++;

@@ -48,7 +48,7 @@ class modCustomerAccount extends DolibarrModules
 		// Use here a free id (See in Home -> System information -> Dolibarr for list of used modules id).
 		$this->numero = 68000;		// TODO Go on page http://wiki.dolibarr.org/index.php/List_of_modules_id to reserve id number for your module
 		// Key text used to identify module (for permissions, menus, etc...)
-		$this->rights_class = 'mymodule';
+		$this->rights_class = 'customeraccount';
 
 		// Family can be 'crm','financial','hr','projects','products','ecm','technic','interface','other'
 		// It is used to group modules by family in module setup page
@@ -199,7 +199,27 @@ class modCustomerAccount extends DolibarrModules
 		// $this->rights[$r][4] = 'level1';				// In php code, permission will be checked by test if ($user->rights->permkey->level1->level2)
 		// $this->rights[$r][5] = 'level2';				// In php code, permission will be checked by test if ($user->rights->permkey->level1->level2)
 		// $r++;
-
+                
+                $this->rights[$r][0] = $this->numero + $r;
+		$this->rights[$r][1] = 'Permision to edit account movements';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'customeraccountmovement';
+		$this->rights[$r][5] = 'read';
+		$r++;
+                
+                $this->rights[$r][0] = $this->numero + $r;
+		$this->rights[$r][1] = 'Permision to write account movements';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'customeraccountmovement';
+		$this->rights[$r][5] = 'write';
+                $r++;
+                
+                $this->rights[$r][0] = $this->numero + $r;
+		$this->rights[$r][1] = 'Permision to delete account movements';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'customeraccountmovement';
+		$this->rights[$r][5] = 'delete';
+                
 		// Main menu entries
 		$this->menu = array();			// List of menus to add
 		$r=0;

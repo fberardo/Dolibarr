@@ -308,7 +308,7 @@ if (empty($reshook))
                         $customerAccountMovement->entity = 1;
                         $customerAccountMovement->fk_customer_account = $obj->rowid;
                         $customerAccountMovement->amount = -$value;
-                        $customerAccountMovement->label = 'Pago de Factura con ID ['.$key.'], con fecha: '.dol_print_date($datepaye,'day');
+                        $customerAccountMovement->label = 'Pago de Factura ID['.$key.']';
                         $customerAccountMovement->dateo = $datepaye;
                         $customerAccountMovement->active = 1;
 
@@ -538,10 +538,18 @@ if ($action == 'create' || $action == 'confirm_paiement' || $action == 'add_paie
 
                                                 $(this).val($("input[name=" + remain_name + "]").val());
                                             } else {
-                                                console.log("No cubre. Quedan: " + available);
-                                                
-                                                // Si comentamos esta línea va a intentar seguir buscando en los siguientes, hasta el final
-                                                return false;
+                                                if (available != 0) {
+                                                    console.log("No cubre. Quedan: " + available);
+
+                                                    // poner el remanente
+                                                    console.log("Pago parcial" + available + ". Quedan ahora: 0");
+
+                                                    $(this).val(available);
+                                                    available = 0;
+
+                                                    // Si comentamos esta línea va a intentar seguir buscando en los siguientes, hasta el final
+                                                    return false;
+                                                }
                                             }
                                         });
 
