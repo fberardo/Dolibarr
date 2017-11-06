@@ -5,6 +5,7 @@ CustomerAccountFieldentity=Entidad
 CustomerAccountFieldDateOperationShort=Fecha de Operación
 CustomerAccountFieldamount=Monto
 CustomerAccountFieldlabel=Descripción
+CustomerAccountFieldDateCheckShort=Fecha de Cobro del Cheque
 CustomerAccountFieldfk_customer_account=Cuenta asociada
 CustomerAccountFieldfk_user_author=Creado Por
 CustomerAccountFieldfk_user_modif=Modificado Por

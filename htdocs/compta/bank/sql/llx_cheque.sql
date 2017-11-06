@@ -16,28 +16,21 @@
 -- You should have received a copy of the GNU General Public License
 -- along with this program. If not, see <http://www.gnu.org/licenses/>.
 --
--- Table of "accounts" for supplier expert module
+-- Table of "cheque" for customer expert module
 -- ============================================================================
 
-create table llx_customer_account_movement
+create table llx_cheque
 (
   rowid           			integer AUTO_INCREMENT PRIMARY KEY,
-  entity          			integer DEFAULT 1 NOT NULL,
-  datec           			datetime,
-  tms             			timestamp,
-  dateo                                 date,
-  amount                                double(24,8) NOT NULL default 0,
-  label                                 varchar(255),
-  fk_customer_account                   integer NOT NULL,
+  num_paiement           		varchar(255) NOT NULL,
+  emetteur_chq           		varchar(255) NOT NULL,
+  bank_chq                              varchar(255) NOT NULL,
+  date_chq           			date,
+  amount_chq                            double(24,8) NOT NULL default 0,
+  fk_customer_account_movement          integer DEFAULT NULL,
   fk_user_author  			integer DEFAULT NULL,
   fk_user_modif   			integer DEFAULT NULL,
   active     	  			tinyint DEFAULT 1  NOT NULL,
-  fk_paiement                           integer NOT NULL,
-  fk_cheque                             integer NULL
+  customer_used 			tinyint DEFAULT 0 NOT NULL,
+  supplier_used 			tinyint DEFAULT 0 NOT NULL
 )ENGINE=innodb;
-
-/*ALTER TABLE llx_customer_account_movement
-add column fk_paiement integer NOT NULL;
-
-ALTER TABLE llx_customer_account_movement
-add column fk_cheque integer NULL;*/

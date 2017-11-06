@@ -20,7 +20,7 @@
  */
 
 /**
- * \file    customer_account_movement/customeraccountmovement.class.php
+ * \file    customer_account_movement/cheque.class.php
  * \ingroup customer_account_movement
  * \brief   This file is an example for a CRUD class file (Create/Read/Update/Delete)
  *          Put some comments here
@@ -32,44 +32,38 @@ require_once DOL_DOCUMENT_ROOT . '/core/class/commonobject.class.php';
 //require_once DOL_DOCUMENT_ROOT . '/product/class/product.class.php';
 
 /**
- * Class customeraccountmovement
+ * Class cheque
  *
  * Put here description of your class
  *
  * @see CommonObject
  */
-class customeraccountmovement extends CommonObject
+class cheque extends CommonObject
 {
 	/**
 	 * @var string Id to identify managed objects
 	 */
-	public $element = 'customeraccountmovement';
+	public $element = 'cheque';
 	/**
 	 * @var string Name of table without prefix where object is stored
 	 */
-	public $table_element = 'customer_account_movement';
-
-	/**
-	 * @var customeraccountmovementLine[] Lines
-	 */
-	public $lines = array();
+	public $table_element = 'cheque';
 
 	/**
 	 */
 	
-	public $entity;
-	public $datec = '';
-	public $tms = '';
-	public $dateo = '';
-	public $amount;
-        public $label;
-	public $fk_customer_account;
+        public $num_paiement;
+	public $chqemetteur = '';
+	public $chqbank;
+        public $datecheck;
+        public $amountcheck;
+        public $fk_customer_account_movement;
 	public $fk_user_author;
 	public $fk_user_modif;
 	public $active;
-        public $paiementid;
-        public $fk_cheque;
-
+        public $customer_used;
+        public $supplier_used;
+        
 	/**
 	 */
 	
@@ -100,17 +94,23 @@ class customeraccountmovement extends CommonObject
 
 		// Clean parameters
 		
-		if (isset($this->entity)) {
-			 $this->entity = trim($this->entity);
+		if (isset($this->num_paiement)) {
+			 $this->num_paiement = trim($this->num_paiement);
 		}
-		if (isset($this->amount)) {
-			 $this->amount = trim($this->amount);
+		if (isset($this->chqemetteur)) {
+			 $this->chqemetteur = trim($this->chqemetteur);
 		}
-                if (isset($this->label)) {
-			 $this->label = trim($this->label);
+                if (isset($this->chqbank)) {
+			 $this->chqbank = trim($this->chqbank);
 		}
-		if (isset($this->fk_customer_account)) {
-			 $this->fk_customer_account = trim($this->fk_customer_account);
+                if (isset($this->datecheck)) {
+			 $this->datecheck = trim($this->datecheck);
+		}
+                if (isset($this->amountcheck)) {
+			 $this->amountcheck = trim($this->amountcheck);
+		}
+                if (isset($this->fk_customer_account_movement)) {
+			 $this->fk_customer_account_movement = trim($this->fk_customer_account_movement);
 		}
 		if (isset($this->fk_user_author) && !empty($this->fk_user_author)) {
 			 $this->fk_user_author = trim($this->fk_user_author);
@@ -121,45 +121,45 @@ class customeraccountmovement extends CommonObject
 		if (isset($this->active) && !empty($this->active)) {
 			 $this->active = trim($this->active);
 		}
-                if (isset($this->paiementid) && !empty($this->paiementid)) {
-			 $this->paiementid = trim($this->paiementid);
+                if (isset($this->customer_used) && !empty($this->customer_used)) {
+			 $this->customer_used = trim($this->customer_used);
 		}
-                if (isset($this->fk_cheque) && !empty($this->fk_cheque)) {
-			 $this->fk_cheque = trim($this->fk_cheque);
+                if (isset($this->supplier_used) && !empty($this->supplier_used)) {
+			 $this->supplier_used = trim($this->supplier_used);
 		}
-
+                
 		// Check parameters
 		// Put here code to add control on parameters values
 
 		// Insert request
-		$sql = 'INSERT INTO ' . MAIN_DB_PREFIX . $this->table_element . '(';
+ 		$sql = 'INSERT INTO ' . MAIN_DB_PREFIX . $this->table_element . '(';
 		
-		$sql.= 'entity,';
-		$sql.= 'datec,';
-		$sql.= 'dateo,';
-		$sql.= 'amount,';
-                $sql.= 'label,';
-                $sql.= 'fk_paiement,';
-                $sql.= 'fk_cheque,';
-		$sql.= 'fk_customer_account,';
+		$sql.= 'num_paiement,';
+		$sql.= 'emetteur_chq,';
+		$sql.= 'bank_chq,';
+                $sql.= 'date_chq,';
+                $sql.= 'amount_chq,';
+                $sql.= 'fk_customer_account_movement,';
 		$sql.= 'fk_user_author,';
 		$sql.= 'fk_user_modif,';
-		$sql.= 'active';
-
+		$sql.= 'active,';
+                $sql.= 'customer_used,';
+                $sql.= 'supplier_used';
+                
 		
 		$sql .= ') VALUES (';
 		
-		$sql .= ' '.(! isset($this->entity)?'NULL':$this->entity).',';
-		$sql .= ' '."'".$this->db->idate(dol_now())."'".',';
-		$sql .= ' '.(! isset($this->dateo) || dol_strlen($this->dateo)==0?'NULL':"'".$this->db->idate($this->dateo)."'").',';
-		$sql .= ' '.(! isset($this->amount)?'NULL':"'".$this->amount."'").',';
-                $sql .= ' '.(! isset($this->label)?'NULL':"'".$this->label."'").',';
-                $sql .= ' '.(! isset($this->paiementid)?'NULL':$this->paiementid).',';
-                $sql .= ' '.(! isset($this->fk_cheque)?'NULL':$this->fk_cheque).',';
-                $sql .= ' '.(! isset($this->fk_customer_account)?'NULL':$this->fk_customer_account).',';
+		$sql .= ' '.(! isset($this->num_paiement)?'NULL':"'".$this->num_paiement."'").',';
+                $sql .= ' '.(! isset($this->chqemetteur)?'NULL':"'".$this->chqemetteur."'").',';
+                $sql .= ' '.(! isset($this->chqbank)?'NULL':"'".$this->chqbank."'").',';
+		$sql .= ' '.(! isset($this->datecheck) || dol_strlen($this->datecheck)==0?'NULL':"'".$this->db->idate($this->datecheck)."'").',';
+                $sql .= ' '.(! isset($this->amountcheck)?'NULL':"'".$this->amountcheck."'").',';
+		$sql .= ' '.(! isset($this->fk_customer_account_movement)?'NULL':$this->fk_customer_account_movement).',';
 		$sql .= ' '.$user->id.',';
 		$sql .= ' '.((isset($this->fk_user_modif) && !empty($this->fk_user_modif))?$this->fk_user_modif:'NULL').',';
-                $sql .= ' '.(! isset($this->active)?'NULL':$this->active);
+                $sql .= ' '.(! isset($this->active)?'NULL':$this->active).',';
+                $sql .= ' '.(! isset($this->customer_used)?'NULL':$this->customer_used).',';
+                $sql .= ' '.(! isset($this->supplier_used)?'NULL':$this->supplier_used);
                 
 		$sql .= ')';
 
@@ -202,64 +202,51 @@ class customeraccountmovement extends CommonObject
 	 * Load object in memory from the database
 	 *
 	 * @param int    $id  Id object
-	 * @param string $ref Ref
 	 *
 	 * @return int <0 if KO, 0 if not found, >0 if OK
 	 */
-	public function fetch($id, $ref = null)
+	public function fetch($id)
 	{
 		dol_syslog(__METHOD__, LOG_DEBUG);
 
 		$sql = 'SELECT';
 		$sql .= ' t.rowid,';
 		
-		$sql .= " t.entity,";
-		$sql .= " t.datec,";
-		$sql .= " t.tms,";
-		$sql .= " t.dateo,";
-		$sql .= " t.amount,";
-                $sql .= " t.label,";
-                $sql .= " t.fk_paiement,";
-                $sql .= " t.fk_cheque,";
-		$sql .= " t.fk_customer_account,";
+		$sql .= " t.num_paiement,";
+		$sql .= " t.emetteur_chq,";
+		$sql .= " t.bank_chq,";
+		$sql .= " t.date_chq,";
+                $sql .= " t.amount_chq,";
+		$sql .= " t.fk_customer_account_movement,";
 		$sql .= " t.fk_user_author,";
 		$sql .= " t.fk_user_modif,";
-		$sql .= " t.active";
-
-		
+		$sql .= " t.active,";
+                $sql .= " t.customer_used,";
+                $sql .= " t.supplier_used";
+                
 		$sql .= ' FROM ' . MAIN_DB_PREFIX . $this->table_element . ' as t';
 		$sql.= ' WHERE 1 = 1';
-		if (! empty($conf->multicompany->enabled)) {
-		    $sql .= " AND entity IN (" . getEntity("customeraccountmovement", 1) . ")";
-		}
-		if (null !== $ref) {
-			$sql .= ' AND t.ref = ' . '\'' . $ref . '\'';
-		} else {
-			$sql .= ' AND t.rowid = ' . $id;
-		}
+		$sql .= ' AND t.rowid = ' . $id;
 
 		$resql = $this->db->query($sql);
 		if ($resql) {
 			$numrows = $this->db->num_rows($resql);
 			if ($numrows) {
-				$obj = $this->db->fetch_object($resql);
+                            $obj = $this->db->fetch_object($resql);
 
-				$this->id = $obj->rowid;
-				
-				$this->entity = $obj->entity;
-				$this->datec = $this->db->jdate($obj->datec);
-				$this->tms = $this->db->jdate($obj->tms);
-				$this->dateo = $this->db->jdate($obj->dateo);
-				$this->amount = $obj->amount;
-                                $this->label = $obj->label;
-                                $this->paiementid = $obj->fk_paiement;
-                                $this->fk_cheque = $obj->fk_cheque;
-                                $this->fk_customer_account = $obj->fk_customer_account;
-				$this->fk_user_author = $obj->fk_user_author;
-				$this->fk_user_modif = $obj->fk_user_modif;
-				$this->active = $obj->active;
+                            $this->id = $obj->rowid;
 
-				
+                            $this->num_paiement = $obj->num_paiement;
+                            $this->chqemetteur = $obj->emetteur_chq;
+                            $this->chqbank = $obj->bank_chq;
+                            $this->datecheck = $this->db->jdate($obj->date_chq);
+                            $this->amountcheck = $obj->amount_chq;
+                            $this->fk_customer_account_movement = $obj->fk_customer_account_movement;
+                            $this->fk_user_author = $obj->fk_user_author;
+                            $this->fk_user_modif = $obj->fk_user_modif;
+                            $this->active = $obj->active;
+                            $this->customer_used = $obj->customer_used;
+                            $this->supplier_used = $obj->supplier_used;
 			}
 			
 			// Retrieve all extrafields for invoice
@@ -305,19 +292,17 @@ class customeraccountmovement extends CommonObject
 		$sql = 'SELECT';
 		$sql .= ' t.rowid,';
 		
-		$sql .= " t.entity,";
-		$sql .= " t.datec,";
-		$sql .= " t.tms,";
-		$sql .= " t.dateo,";
-		$sql .= " t.amount,";
-                $sql .= " t.label,";
-                $sql .= " t.fk_paiement,";
-                $sql .= " t.fk_cheque,";
-		$sql .= " t.fk_customer_account,";
+		$sql .= " t.num_paiement,";
+		$sql .= " t.emetteur_chq,";
+		$sql .= " t.bank_chq,";
+		$sql .= " t.date_chq,";
+                $sql .= " t.amount_chq,";
+		$sql .= " t.fk_customer_account_movement,";
 		$sql .= " t.fk_user_author,";
 		$sql .= " t.fk_user_modif,";
-		$sql .= " t.active";
-
+		$sql .= " t.active,";
+                $sql .= " t.customer_used,";
+                $sql .= " t.supplier_used";
 		
 		$sql .= ' FROM ' . MAIN_DB_PREFIX . $this->table_element. ' as t';
 
@@ -329,9 +314,6 @@ class customeraccountmovement extends CommonObject
 			}
 		}
 		$sql.= ' WHERE 1 = 1';
-		if (! empty($conf->multicompany->enabled)) {
-		    $sql .= " AND entity IN (" . getEntity("customeraccountmovement", 1) . ")";
-		}
 		if (count($sqlwhere) > 0) {
 			$sql .= ' AND ' . implode(' '.$filtermode.' ', $sqlwhere);
 		}
@@ -349,23 +331,22 @@ class customeraccountmovement extends CommonObject
 			$num = $this->db->num_rows($resql);
 
 			while ($obj = $this->db->fetch_object($resql)) {
-				$line = new customeraccountmovementLine();
+				$line = new chequeLine();
 
 				$line->id = $obj->rowid;
 				
-				$line->entity = $obj->entity;
-				$line->datec = $this->db->jdate($obj->datec);
-				$line->tms = $this->db->jdate($obj->tms);
-				$line->dateo = $this->db->jdate($obj->dateo);
-				$line->amount = $obj->amount;
-                                $line->label = $obj->label;
-                                $line->paiementid = $obj->fk_paiement;
-                                $line->fk_cheque = $obj->fk_cheque;
-				$line->fk_customer_account = $obj->fk_customer_account;
-				$line->fk_user_author = $obj->fk_user_author;
-				$line->fk_user_modif = $obj->fk_user_modif;
-				$line->active = $obj->active;
-
+                                $line->num_paiement = $obj->num_paiement;
+                                $line->chqemetteur = $obj->emetteur_chq;
+                                $line->chqbank = $obj->bank_chq;
+                                $line->datecheck = $this->db->jdate($obj->date_chq);
+                                $this->amountcheck = $obj->amount_chq;
+                                $line->fk_customer_account_movement = $obj->fk_customer_account_movement;
+                                $line->fk_user_author = $obj->fk_user_author;
+                                $line->fk_user_modif = $obj->fk_user_modif;
+                                $line->active = $obj->active;
+                                $line->customer_used = $obj->customer_used;
+                                $line->supplier_used = $obj->supplier_used;
+                                
 				$this->lines[$line->id] = $line;
 			}
 			$this->db->free($resql);
@@ -395,17 +376,23 @@ class customeraccountmovement extends CommonObject
 
 		// Clean parameters
 		
-		if (isset($this->entity)) {
-			 $this->entity = trim($this->entity);
+		if (isset($this->num_paiement)) {
+			 $this->num_paiement = trim($this->num_paiement);
 		}
-		if (isset($this->amount)) {
-			 $this->amount = trim($this->amount);
+		if (isset($this->chqemetteur)) {
+			 $this->chqemetteur = trim($this->chqemetteur);
 		}
-                if (isset($this->label)) {
-			 $this->label = trim($this->label);
+                if (isset($this->chqbank)) {
+			 $this->chqbank = trim($this->chqbank);
 		}
-		if (isset($this->fk_customer_account)) {
-			 $this->fk_customer_account = trim($this->fk_customer_account);
+                if (isset($this->datecheck)) {
+			 $this->datecheck = trim($this->datecheck);
+		}
+                if (isset($this->amountcheck)) {
+			 $this->amountcheck = trim($this->amountcheck);
+		}
+                if (isset($this->fk_customer_account_movement)) {
+			 $this->fk_customer_account_movement = trim($this->fk_customer_account_movement);
 		}
 		if (isset($this->fk_user_author) && !empty($this->fk_user_author)) {
 			 $this->fk_user_author = trim($this->fk_user_author);
@@ -416,41 +403,37 @@ class customeraccountmovement extends CommonObject
 		if (isset($this->active) && !empty($this->active)) {
 			 $this->active = trim($this->active);
 		}
-                if (isset($this->paiementid) && !empty($this->paiementid)) {
-			 $this->paiementid = trim($this->paiementid);
+                if (isset($this->customer_used) && !empty($this->customer_used)) {
+			 $this->customer_used = trim($this->customer_used);
 		}
-                if (isset($this->fk_cheque) && !empty($this->fk_cheque)) {
-			 $this->fk_cheque = trim($this->fk_cheque);
+                if (isset($this->supplier_used) && !empty($this->supplier_used)) {
+			 $this->supplier_used = trim($this->supplier_used);
 		}
-		
-
+                
 		// Check parameters
 		// Put here code to add a control on parameters values
 
 		// Update request
 		$sql = 'UPDATE ' . MAIN_DB_PREFIX . $this->table_element . ' SET';
 		
-		$sql .= ' entity = '.(isset($this->entity)?$this->entity:"null").',';
+		$sql .= ' num_paiement = '.(isset($this->num_paiement)?"'".$this->num_paiement."'":"null").',';
                 
-		//$sql .= ' datec = '.(!isset($this->datec) || dol_strlen($this->datec) != 0 ? "'".$this->db->idate($this->datec)."'" : 'null').',';
-                $sql .= ' datec = '.(! isset($this->datec) || dol_strlen($this->datec) == 0 ? 'NULL' : "'".$this->db->idate($this->datec)."'").',';
+		$sql .= ' emetteur_chq = '.(isset($this->chqemetteur)?"'".$this->chqemetteur."'":"null").',';
+		$sql .= ' bank_chq = '.(isset($this->chqbank)?"'".$this->chqbank."'":"null").',';
 		
-		$sql .= ' tms = '.(dol_strlen($this->tms) != 0 ? "'".$this->db->idate($this->tms)."'" : "'".$this->db->idate(dol_now())."'").',';
-		
-                //$sql .= ' dateo = '.(! isset($this->dateo) || dol_strlen($this->dateo) != 0 ? "'".$this->db->idate($this->dateo)."'" : 'null').',';
-                $sql .= ' dateo = '.(! isset($this->dateo) || dol_strlen($this->dateo) == 0 ? 'NULL' : "'".$this->db->idate($this->dateo)."'").',';
+                //$sql .= ' date_chq = '.(! isset($this->datecheck) || dol_strlen($this->datecheck) != 0 ? "'".$this->db->idate($this->datecheck)."'" : 'null').',';
+                $sql .= ' date_chq = '.(! isset($this->datecheck) || dol_strlen($this->datecheck) == 0 ? 'NULL' : "'".$this->db->idate($this->datecheck)."'").',';
                 
-		$sql .= ' amount = '.(isset($this->amount)?$this->amount:"null").',';
-                $sql .= ' label = '.(isset($this->label)?"'".$this->label."'":"null").',';
-                $sql .= ' fk_paiement = '.(isset($this->paiementid)?$this->paiementid:"null").',';
-                $sql .= ' fk_cheque = '.(isset($this->fk_cheque)?$this->fk_cheque:"null").',';
+                $sql .= ' amount_chq = '.(isset($this->amountcheck)?$this->amountcheck:"null").',';
                 
-		//$sql .= ' fk_customer_account = '.(isset($this->fk_customer_account)?$this->fk_customer_account:"null").',';
+		//$sql .= ' fk_customer_account_movement = '.(isset($this->fk_customer_account_movement)?$this->fk_customer_account_movement:"null").',';
 		//$sql .= ' fk_user_author = '.(isset($this->fk_user_author)?$this->fk_user_author:"null").',';
 		//$sql .= ' fk_user_modif = '.(isset($this->fk_user_modif)?$this->fk_user_modif:"null").',';
                 $sql .= ' fk_user_modif = '.$user->id.',';
-		$sql .= ' active = '.(isset($this->active)?$this->active:"null");
-        
+		$sql .= ' active = '.(isset($this->active)?$this->active:"null").',';
+                $sql .= ' customer_used = '.(isset($this->customer_used)?$this->customer_used:"null").',';
+                $sql .= ' supplier_used = '.(isset($this->supplier_used)?$this->supplier_used:"null");
+                
 		$sql .= ' WHERE rowid = ' . $this->id;
 
 		$this->db->begin();
@@ -551,7 +534,7 @@ class customeraccountmovement extends CommonObject
 
 		global $user;
 		$error = 0;
-		$object = new customeraccountmovement($this->db);
+		$object = new cheque($this->db);
 
 		$this->db->begin();
 
@@ -609,8 +592,9 @@ class customeraccountmovement extends CommonObject
         $label = '<u>' . $langs->trans("MyModule") . '</u>';
         $label.= '<br>';
         $label.= '<b>' . $langs->trans('Ref') . ':</b> ' . $this->ref;
-
-        $url = DOL_URL_ROOT.'/customer_account_movement/'.$this->table_name.'_card.php?id='.$this->id;
+        
+        // TODO
+        $url = DOL_URL_ROOT.'/compta/bank/'.$this->table_name.'_card.php?id='.$this->id;
         
         $linkclose='';
         if (empty($notooltip))
@@ -709,26 +693,25 @@ class customeraccountmovement extends CommonObject
 	{
 		$this->id = 0;
 		
-		$this->entity = '';
-		$this->datec = '';
-		$this->tms = '';
-		$this->dateo = '';
-		$this->amount = '';
-                $this->label = '';
-		$this->fk_customer_account = '';
+		$this->num_paiement = '';
+		$this->chqemetteur = '';
+		$this->chqbank = '';
+		$this->datecheck = '';
+                $this->amountcheck = '';
+		$this->fk_customer_account_movement = '';
 		$this->fk_user_author = '';
 		$this->fk_user_modif = '';
 		$this->active = '';
-
-		
+                $this->customer_used = '';
+                $this->supplier_used = '';
 	}
 
 }
 
 /**
- * Class customeraccountmovementLine
+ * Class chequeLine
  */
-class customeraccountmovementLine
+class chequeLine
 {
 	/**
 	 * @var int ID
@@ -738,18 +721,17 @@ class customeraccountmovementLine
 	 * @var mixed Sample line property 1
 	 */
 	
-	public $entity;
-	public $datec = '';
-	public $tms = '';
-	public $dateo = '';
-	public $amount;
-        public $label;
-	public $fk_customer_account;
+        public $num_paiement;
+	public $chqemetteur = '';
+	public $chqbank;
+        public $datecheck;
+        public $amountcheck;
+        public $fk_customer_account_movement;
 	public $fk_user_author;
 	public $fk_user_modif;
 	public $active;
-        public $paiementid;
-        public $fk_cheque;
+        public $customer_used;
+        public $supplier_used;
 
 	/**
 	 * @var mixed Sample line property 2

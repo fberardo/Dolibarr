@@ -21,3 +21,5 @@ ALTER TABLE llx_customer_account_movement ADD INDEX idx_customer_account_movemen
 ALTER TABLE llx_customer_account_movement ADD INDEX idx_customer_account_movement_fk_customer_account(fk_customer_account);
 
 ALTER TABLE llx_customer_account_movement ADD CONSTRAINT fk_customer_account_movement_fk_customer_account FOREIGN KEY (fk_customer_account) REFERENCES llx_customer_account (rowid);
+
+ALTER TABLE llx_customer_account_movement ADD CONSTRAINT fk_customer_account_movement_fk_cheque FOREIGN KEY (fk_cheque) REFERENCES llx_cheque (rowid);

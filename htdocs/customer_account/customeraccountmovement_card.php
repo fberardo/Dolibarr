@@ -44,11 +44,16 @@ if (! $res && file_exists("../../../../dolibarr/htdocs/main.inc.php")) $res=@inc
 if (! $res) die("Include of main fails");
 // Change this following line to use the correct relative path from htdocs
 include_once(DOL_DOCUMENT_ROOT.'/core/class/html.formcompany.class.php');
+require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
+require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
 dol_include_once('/customer_account/class/customeraccountmovement.class.php');
+require_once DOL_DOCUMENT_ROOT.'/compta/bank/class/cheque.class.php';
 
 // Load traductions files requiredby by page
 $langs->load("customeraccount@customer_account");
 $langs->load("other");
+$langs->load('banks');
+$langs->load('bills');
 
 // Get parameters
 $id			= GETPOST('id','int');
@@ -57,6 +62,7 @@ $action		= GETPOST('action','alpha');
 $cancel     = GETPOST('cancel');
 $backtopage = GETPOST('backtopage');
 $myparam	= GETPOST('myparam','alpha');
+$paymentnum	= GETPOST('num_paiement');
 
 
 $search_amount=GETPOST('search_amount','alpha');
@@ -140,41 +146,124 @@ if (empty($reshook))
                 
                 $object->amount=GETPOST('amount','alpha');
                 $object->label=GETPOST('label','alpha');
+                $object->paiementcode=GETPOST('paiementcode','alpha');
                 $object->fk_customer_account=GETPOST('fk_customer_account','int');
                 $object->fk_user_author=GETPOST('fk_user_author','int');
                 $object->fk_user_modif=GETPOST('fk_user_modif','int');
                 $object->active=GETPOST('active','int');
-
-		
 
 		/*if (empty($object->ref))
 		{
 			$error++;
 			setEventMessages($langs->trans("ErrorFieldRequired",$langs->transnoentitiesnoconv("Ref")), null, 'errors');
 		}*/
+                if (! isset($object->dateo) || empty($object->dateo))
+                {
+                    $error++;
+                    setEventMessages($langs->trans("ErrorFieldRequired",$langs->transnoentitiesnoconv("CustomerAccountFieldDateOperationShort")), null, 'errors');
+                }
+                
                 if (! isset($object->amount) || empty($object->amount))
                 {
                     $error++;
                     setEventMessages($langs->trans("ErrorFieldRequired",$langs->transnoentitiesnoconv("CustomerAccountFieldamount")), null, 'errors');
                 }
+                if (! isset($object->label) || empty($object->label))
+                {
+                    $error++;
+                    setEventMessages($langs->trans("ErrorFieldRequired",$langs->transnoentitiesnoconv("CustomerAccountFieldlabel")), null, 'errors');
+                }
+                if (! isset($object->paiementcode) || empty($object->paiementcode))
+                {
+                    $error++;
+                    setEventMessages($langs->trans("ErrorFieldRequired",$langs->transnoentitiesnoconv("PaymentMode")), null, 'errors');
+                }
 
 		if (! $error)
 			
 		{
-			$result=$object->create($user);
-			if ($result > 0)
-			{
-				// Creation OK
-				$urltogo=$backtopage?$backtopage:dol_buildpath('/customer_account/customeraccountmovement_list.php?socid='.$socid,1);
-				header("Location: ".$urltogo);
-				exit;
-			}
-			{
-				// Creation KO
-				if (! empty($object->errors)) setEventMessages(null, $object->errors, 'errors');
-				else  setEventMessages($object->error, null, 'errors');
-				$action='create';
-			}
+			
+                        $paiementcode = GETPOST('paiementcode','alpha');
+                        $idcheque = null;
+                        /*
+                         * <option value="CHQ">Cheque</option>
+                         * <option value="PRE">Domiciliación</option> // Cheque a Terceros
+                         */
+                        if ($paiementcode == 'CHQ' || $paiementcode == 'PRE') {
+                            
+                            $objectcheque = new cheque($db);
+                            $objectcheque->num_paiement = $paymentnum;
+                            $objectcheque->chqemetteur = GETPOST('chqemetteur','alpha');
+                            $objectcheque->chqbank = GETPOST('chqbank','alpha');
+                            
+                            $month=$_POST["datecheckmonth"];
+                            $day=$_POST["datecheckday"];
+                            $year=$_POST["datecheckyear"];
+
+                            $datecheckp = dol_mktime(12,0,0,$month,$day,$year);
+                            $objectcheque->datecheck = $datecheckp;
+                            
+                            $objectcheque->amountcheck = GETPOST('amount','alpha');
+                            
+                            $objectcheque->fk_user_author=GETPOST('fk_user_author','int');
+                            $objectcheque->fk_user_modif=GETPOST('fk_user_modif','int');
+                            $objectcheque->active=GETPOST('active','int');
+                            $objectcheque->customer_used=0;
+                            $objectcheque->supplier_used=0;
+                            
+                            if (! isset($objectcheque->chqemetteur) || empty($objectcheque->chqemetteur))
+                            {
+                                $error++;
+                                setEventMessages($langs->trans("ErrorFieldRequired",$langs->transnoentitiesnoconv("CheckTransmitter")), null, 'errors');
+                            }
+                            if (! isset($objectcheque->datecheck) || empty($objectcheque->datecheck))
+                            {
+                                $error++;
+                                setEventMessages($langs->trans("ErrorFieldRequired",$langs->transnoentitiesnoconv("CustomerAccountFieldDateCheckShort")), null, 'errors');
+                            }
+                            
+                            if (! $error)
+                            {
+                                $idcheque = $objectcheque->create($user);
+
+                                if ($idcheque < 0) {
+                                    // Creation KO
+                                    if (! empty($objectcheque->errors)) setEventMessages(null, $objectcheque->errors, 'errors');
+                                    else  setEventMessages($objectcheque->error, null, 'errors');
+                                    $error++;
+                                }
+                            }
+                            else
+                            {
+                                $action='create';
+                            }
+                        }
+                        
+                        if (! $error)
+                        {
+                            $object->paiementid = dol_getIdFromCode($db,GETPOST('paiementcode'),'c_paiement');
+                            $object->fk_cheque=$idcheque;
+
+                            $result=$object->create($user);
+
+                            if ($result > 0)
+                            {
+                                    // Creation OK
+                                    $urltogo=$backtopage?$backtopage:dol_buildpath('/customer_account/customeraccountmovement_list.php?socid='.$socid,1);
+                                    header("Location: ".$urltogo);
+                                    exit;
+                            }
+                            {
+                                    // Creation KO
+                                    if (! empty($object->errors)) setEventMessages(null, $object->errors, 'errors');
+                                    else  setEventMessages($object->error, null, 'errors');
+                                    $action='create';
+                            }
+                        }
+                        else
+                        {
+                            $action='create';
+                        }
 		}
 		else
 		{
@@ -187,7 +276,6 @@ if (empty($reshook))
 	{
 		$error=0;
 
-		
                 $object->entity=GETPOST('entity','int');
                 
                 //$object->dateo=GETPOST('dateo','int');
@@ -201,38 +289,146 @@ if (empty($reshook))
                 
                 $object->amount=GETPOST('amount','alpha');
                 $object->label=GETPOST('label','alpha');
+                $object->paiementcode=GETPOST('paiementcode','alpha');
                 $object->fk_customer_account=GETPOST('fk_customer_account','int');
                 $object->fk_user_author=GETPOST('fk_user_author','int');
                 $object->fk_user_modif=GETPOST('fk_user_modif','int');
                 $object->active=GETPOST('active','int');
-
-		
 
 		/*if (empty($object->ref))
 		{
 			$error++;
 			setEventMessages($langs->transnoentitiesnoconv("ErrorFieldRequired",$langs->transnoentitiesnoconv("Ref")), null, 'errors');
 		}*/
+                if (! isset($object->dateo) || empty($object->dateo))
+                {
+                    $error++;
+                    setEventMessages($langs->trans("ErrorFieldRequired",$langs->transnoentitiesnoconv("CustomerAccountFieldDateOperationShort")), null, 'errors');
+                }
                 if (! isset($object->amount) || empty($object->amount))
                 {
                     $error++;
                     setEventMessages($langs->trans("ErrorFieldRequired",$langs->transnoentitiesnoconv("CustomerAccountFieldamount")), null, 'errors');
                 }
+                if (! isset($object->label) || empty($object->label))
+                {
+                    $error++;
+                    setEventMessages($langs->trans("ErrorFieldRequired",$langs->transnoentitiesnoconv("CustomerAccountFieldlabel")), null, 'errors');
+                }
+                if (! isset($object->paiementcode) || empty($object->paiementcode))
+                {
+                    $error++;
+                    setEventMessages($langs->trans("ErrorFieldRequired",$langs->transnoentitiesnoconv("PaymentMode")), null, 'errors');
+                }
 
 		if (! $error)
 		{
-			$result=$object->update($user);
-			if ($result > 0)
-			{
-				$action='view';
-			}
-			else
-			{
-				// Creation KO
-				if (! empty($object->errors)) setEventMessages(null, $object->errors, 'errors');
-				else setEventMessages($object->error, null, 'errors');
-				$action='edit';
-			}
+			$objectcheque = new cheque($db);
+                        $idcheque = null;
+                        
+                        if ($object->fk_cheque != null)
+                        {
+                            $objectcheque->fetch($object->fk_cheque);
+                            $idcheque = $object->fk_cheque;
+                        }
+                        
+                        $paiementcode = GETPOST('paiementcode','alpha');
+                        
+                        /*
+                         * <option value="CHQ">Cheque</option>
+                         * <option value="PRE">Domiciliación</option> // Cheque a Terceros
+                         */
+                        if ($paiementcode == 'CHQ' || $paiementcode == 'PRE') {
+                            
+                            $objectcheque->num_paiement = $paymentnum;
+                            $objectcheque->chqemetteur = GETPOST('chqemetteur','alpha');
+                            $objectcheque->chqbank = GETPOST('chqbank','alpha');
+                            
+                            $month=$_POST["datecheckmonth"];
+                            $day=$_POST["datecheckday"];
+                            $year=$_POST["datecheckyear"];
+
+                            $datecheckp = dol_mktime(12,0,0,$month,$day,$year);
+                            $objectcheque->datecheck = $datecheckp;
+                            
+                            $objectcheque->amountcheck = GETPOST('amount','alpha');
+                            
+                            $objectcheque->fk_user_author=GETPOST('fk_user_author','int');
+                            $objectcheque->fk_user_modif=GETPOST('fk_user_modif','int');
+                            $objectcheque->active=GETPOST('active','int');
+                            $objectcheque->customer_used=0;
+                            $objectcheque->supplier_used=0;
+                            
+                            if (! isset($objectcheque->chqemetteur) || empty($objectcheque->chqemetteur))
+                            {
+                                $error++;
+                                setEventMessages($langs->trans("ErrorFieldRequired",$langs->transnoentitiesnoconv("CheckTransmitter")), null, 'errors');
+                            }
+                            if (! isset($objectcheque->datecheck) || empty($objectcheque->datecheck))
+                            {
+                                $error++;
+                                setEventMessages($langs->trans("ErrorFieldRequired",$langs->transnoentitiesnoconv("CustomerAccountFieldDateCheckShort")), null, 'errors');
+                            }
+                            
+                            if (! $error)
+                            {
+                                $result = 1;
+                                if ($object->fk_cheque != null)
+                                {
+                                    $result = $objectcheque->update($user);
+                                }
+                                else
+                                {
+                                    $idcheque = $objectcheque->create($user);
+                                }
+
+                                if ($idcheque < 0 || $result < 0) {
+                                    // Creation KO
+                                    if (! empty($objectcheque->errors)) setEventMessages(null, $objectcheque->errors, 'errors');
+                                    else  setEventMessages($objectcheque->error, null, 'errors');
+                                    $error++;
+                                }
+                            }
+                            else
+                            {
+                                $action='edit';
+                            }
+
+                        }
+                        else
+                        {
+                            if ($object->fk_cheque != null)
+                            {
+                                // Eliminar el cheque existente
+                                $objectcheque->fetch($object->fk_cheque);
+                                $objectcheque->delete($user);
+                                
+                            }
+                            $idcheque = null;
+                        }
+                        
+                        if (! $error)
+                        {
+                            $object->paiementid = dol_getIdFromCode($db,GETPOST('paiementcode'),'c_paiement');
+                            $object->fk_cheque = $idcheque;
+                        
+                            $result=$object->update($user);
+                            if ($result > 0)
+                            {
+                                    $action='view';
+                            }
+                            else
+                            {
+                                    // Creation KO
+                                    if (! empty($object->errors)) setEventMessages(null, $object->errors, 'errors');
+                                    else setEventMessages($object->error, null, 'errors');
+                                    $action='edit';
+                            }
+                        }
+                        else
+                        {
+                            $action='edit';
+                        }
 		}
 		else
 		{
@@ -246,7 +442,17 @@ if (empty($reshook))
 		$result=$object->delete($user);
 		if ($result > 0)
 		{
-			// Delete OK
+			
+                        if ($object->fk_cheque != null)
+                        {
+                            // Eliminar el cheque existente
+                            $objectcheque = new cheque($db);
+                            $objectcheque->fetch($object->fk_cheque);
+                            $objectcheque->delete($user);
+
+                        }
+                        
+                        // Delete OK
 			setEventMessages("RecordDeleted", null, 'mesgs');
                         $socid = GETPOST('socid');
                         header("Location: ".dol_buildpath('/customer_account/customeraccountmovement_list.php?socid='.$socid,1));
@@ -260,6 +466,13 @@ if (empty($reshook))
 	}
 }
 
+$societe = new Societe($db);
+//if ($socid > 0 && empty($object->id))
+//{
+    // Load data of third party
+    $res = $societe->fetch($socid);
+    $thirdpartylabel = $societe->nom;
+//}
 
 
 
@@ -289,9 +502,43 @@ jQuery(document).ready(function() {
 	init_myfunc();
 	jQuery("#mybutton").click(function() {
 		init_myfunc();
-	});
-});
-</script>';
+	});';
+
+// Add realtime total information
+if ($conf->use_javascript_ajax)
+{
+    print '	function setPaiementCode()
+                {
+                    var code = $("#selectpaiementcode option:selected").val();
+
+                    if (code == \'CHQ\' || code == \'VIR\')
+                    {
+                        if (code == \'CHQ\')
+                        {
+                            $(\'.fieldrequireddyn\').addClass(\'fieldrequired\');
+                        }
+                        if ($(\'#fieldchqemetteur\').val() == \'\')
+                        {
+                            var emetteur = \''.$thirdpartylabel.'\'
+                            $(\'#fieldchqemetteur\').val(emetteur);
+                        }
+                    }
+                    else
+                    {
+                        $(\'.fieldrequireddyn\').removeClass(\'fieldrequired\');
+                        $(\'#fieldchqemetteur\').val(\'\');
+                    }
+                }
+                
+                setPaiementCode();
+
+                $("#selectpaiementcode").change(function() {
+                    setPaiementCode();
+                });';
+}
+
+print '	});'."\n";
+print '	</script>'."\n";
 
 
 // Part to create
@@ -308,7 +555,6 @@ if ($action == 'create')
         print '<input type="hidden" name="fk_user_author" value="'.GETPOST('fk_user_author').'">';
         print '<input type="hidden" name="fk_user_modif" value="'.GETPOST('fk_user_modif').'">';
         print '<input type="hidden" name="active" value="'.GETPOST('active').'">';
-        
         
 	dol_fiche_head();
 
@@ -329,9 +575,50 @@ if ($action == 'create')
         print '</td>';
         print '</tr>';
         
+        // Monto
         print '<tr><td class="fieldrequired">'.$langs->trans("CustomerAccountFieldamount").'</td><td><input class="flat" type="text" name="amount" value="'.GETPOST('amount').'"></td></tr>';
+        
+        // Descripcion
         print '<tr><td class="fieldrequired">'.$langs->trans("CustomerAccountFieldlabel").'</td><td><input class="flat" type="text" name="label" value="'.GETPOST('label').'"></td></tr>';
+        
+        // Payment mode
+        print '<tr><td><span class="fieldrequired">'.$langs->trans('PaymentMode').'</span></td><td>';
+        //$form->select_types_paiements((GETPOST('paiementcode')?GETPOST('paiementcode'):$facture->mode_reglement_code),'paiementcode','',2);
+        $form->select_types_paiements((GETPOST('paiementcode')),'paiementcode','',2);
+        print "</td>\n";
+        print '</tr>';
+        
+        // Cheque number
+        print '<tr><td>'.$langs->trans('Numero');
+        print ' <em>('.$langs->trans("ChequeOrTransferNumber").')</em>';
+        print '</td>';
+        print '<td><input name="num_paiement" type="text" value="'.GETPOST('num_paiement').'"></td></tr>';
 
+        // Check transmitter
+        print '<tr><td class="'.(GETPOST('paiementcode')=='CHQ'?'fieldrequired ':'').'fieldrequireddyn">'.$langs->trans('CheckTransmitter');
+        print ' <em>('.$langs->trans("ChequeMaker").')</em>';
+        print '</td>';
+        print '<td><input id="fieldchqemetteur" name="chqemetteur" size="30" type="text" value="'.GETPOST('chqemetteur').'"></td></tr>';
+
+        // Bank name
+        print '<tr><td>'.$langs->trans('Bank');
+        print ' <em>('.$langs->trans("ChequeBank").')</em>';
+        print '</td>';
+        print '<td><input name="chqbank" size="30" type="text" value="'.GETPOST('chqbank').'"></td></tr>';
+        
+        // Check date
+        print '<tr><td class="fieldrequired">'.$langs->trans("CustomerAccountFieldDateCheckShort").'</td>';
+        print '<td>';
+        print $form->select_date(GETPOST('datecheck'),'datecheck','','','','createForm',1,1,1);
+        
+        // For Only View
+        /*
+        //print dol_print_date($object->dateo, "day");
+        */
+        
+        print '</td>';
+        print '</tr>';
+        
 	print '</table>'."\n";
 
 	dol_fiche_end();
@@ -358,6 +645,14 @@ if (($id || $ref) && $action == 'edit')
         print '<input type="hidden" name="fk_user_author" value="'.GETPOST('fk_user_author').'">';
         print '<input type="hidden" name="fk_user_modif" value="'.GETPOST('fk_user_modif').'">';
         print '<input type="hidden" name="active" value="'.GETPOST('active').'">';
+        
+        $objectcheque = new cheque($db);
+        if ($object->fk_cheque != null)
+        {
+            $paiementcode = dol_getIdFromCode($db,$object->paiementid,'c_paiement','id','code');
+            
+            $objectcheque->fetch($object->fk_cheque);
+        }
 	
 	dol_fiche_head();
 
@@ -372,8 +667,49 @@ if (($id || $ref) && $action == 'edit')
         print '</td>';
         print '</tr>';
         
-        print '<tr><td class="fieldrequired">'.$langs->trans("CustomerAccountFieldamount").'</td><td><input class="flat" type="text" name="amount" value="'.$object->amount.'"></td></tr>';
+        // Monto
+        print '<tr><td class="fieldrequired">'.$langs->trans("CustomerAccountFieldamount").'</td><td><input class="flat" type="text" name="amount" value="'.price($object->amount).'"></td></tr>';
+        
+        // Descripcion
         print '<tr><td class="fieldrequired">'.$langs->trans("CustomerAccountFieldlabel").'</td><td><input class="flat" type="text" name="label" value="'.$object->label.'"></td></tr>';
+        
+        // Payment mode
+        print '<tr><td><span class="fieldrequired">'.$langs->trans('PaymentMode').'</span></td><td>';
+        //$form->select_types_paiements((GETPOST('paiementcode')?GETPOST('paiementcode'):$facture->mode_reglement_code),'paiementcode','',2);
+        $form->select_types_paiements($paiementcode,'paiementcode','',2);
+        print "</td>\n";
+        print '</tr>';
+        
+        // Cheque number
+        print '<tr><td>'.$langs->trans('Numero');
+        print ' <em>('.$langs->trans("ChequeOrTransferNumber").')</em>';
+        print '</td>';
+        print '<td><input name="num_paiement" type="text" value="'.$objectcheque->num_paiement.'"></td></tr>';
+
+        // Check transmitter
+        print '<tr><td class="'.(GETPOST('paiementcode')=='CHQ'?'fieldrequired ':'').'fieldrequireddyn">'.$langs->trans('CheckTransmitter');
+        print ' <em>('.$langs->trans("ChequeMaker").')</em>';
+        print '</td>';
+        print '<td><input id="fieldchqemetteur" name="chqemetteur" size="30" type="text" value="'.$objectcheque->chqemetteur.'"></td></tr>';
+
+        // Bank name
+        print '<tr><td>'.$langs->trans('Bank');
+        print ' <em>('.$langs->trans("ChequeBank").')</em>';
+        print '</td>';
+        print '<td><input name="chqbank" size="30" type="text" value="'.$objectcheque->chqbank.'"></td></tr>';
+        
+        // Check date
+        print '<tr><td class="fieldrequired">'.$langs->trans("CustomerAccountFieldDateCheckShort").'</td>';
+        print '<td>';
+        print $form->select_date($objectcheque->datecheck,'datecheck','','','','createForm',1,1,1);
+        
+        // For Only View
+        /*
+        //print dol_print_date($object->datecheck, "day");
+        */
+        
+        print '</td>';
+        print '</tr>';
 
 	print '</table>';
 	
@@ -425,7 +761,33 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
         
         $customerAccountMovement->next_prev_filter=$morefilters;
         $customerAccountMovement->ref=$id;
+        
+        // Descripcion
+        $label = $object->label;
+        $objectlabel = $object->label;
+        //Pago de Factura ID['.$key.']
+        if (substr($label,0,19) == 'Pago de Factura ID[')
+        {
+            $cursorfacid = substr($label,19, dol_strlen($label)-19-1);
+            $facture = new Facture($db);
+            $result = $facture->fetch($cursorfacid);
 
+            if ($result >= 0)
+            {
+                $objectlabel = 'Pago de Factura ' . $facture->getNomUrl(1,'');
+            }
+        }
+        
+        $objectcheque = new cheque($db);
+        if (($object->fk_cheque != null) && ($object->paiementid != null))
+        {
+            //$paiementcode = dol_getIdFromCode($db,$object->paiementid,'c_paiement','id','code');
+            $form->load_cache_types_paiements();
+            $paiementdesc = $form->cache_types_paiements[$object->paiementid]['label'];
+            
+            $objectcheque->fetch($object->fk_cheque);
+        }
+                    
         // Ref
         print '<tr><td class="titlefield">'.$langs->trans("Ref")."</td>";
         print '<td>';
@@ -443,10 +805,15 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
         print dol_print_date($object->dateo, "day");
         print '</td>';
         print '</tr>';
-
-        print '<tr><td class="fieldrequired">'.$langs->trans("CustomerAccountFieldamount").'</td><td>'.$object->amount.'</td></tr>';
-        print '<tr><td class="fieldrequired">'.$langs->trans("CustomerAccountFieldlabel").'</td><td>'.$object->label.'</td></tr>';
-
+        
+        print '<tr><td>'.$langs->trans("CustomerAccountFieldamount").'</td><td>'.price($object->amount).'</td></tr>';
+        print '<tr><td>'.$langs->trans("CustomerAccountFieldlabel").'</td><td>'.$objectlabel.'</td></tr>';
+        print '<tr><td>'.$langs->trans("PaymentMode").'</td><td>'.$paiementdesc.'</td></tr>';
+        print '<tr><td>'.$langs->trans('Numero').'<em>('.$langs->trans("ChequeOrTransferNumber").')</em>.</td><td>'.$objectcheque->num_paiement.'</td></tr>';
+        print '<tr><td>'.$langs->trans("ChequeMaker").'</td><td>'.$objectcheque->chqemetteur.'</td></tr>';
+        print '<tr><td>'.$langs->trans("ChequeBank").'</td><td>'.$objectcheque->chqbank.'</td></tr>';
+        print '<tr><td>'.$langs->trans("CustomerAccountFieldDateCheckShort").'</td><td>'.dol_print_date($objectcheque->datecheck, "day").'</td></tr>';
+        
 	print '</table>';
 	
 	dol_fiche_end();

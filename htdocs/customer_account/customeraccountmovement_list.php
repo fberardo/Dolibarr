@@ -55,6 +55,8 @@ require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
 // Load traductions files requiredby by page
 $langs->load("customeraccount@customer_account");
 $langs->load("other");
+$langs->load('banks');
+$langs->load('bills');
 
 $action=GETPOST('action','alpha');
 $massaction=GETPOST('massaction','alpha');
@@ -73,6 +75,8 @@ $search_dt_start = dol_mktime(0, 0, 0, GETPOST('search_start_dtmonth', 'int'), G
 $search_dt_end = dol_mktime(0, 0, 0, GETPOST('search_end_dtmonth', 'int'), GETPOST('search_end_dtday', 'int'), GETPOST('search_end_dtyear', 'int'));
 $search_amount=GETPOST('search_amount','alpha');
 $search_description=GETPOST('search_description','alpha');
+$search_paymenttype=GETPOST("search_paymenttype");
+$search_payment_num=GETPOST('search_payment_num','alpha');
 
 
 $optioncss = GETPOST('optioncss','alpha');
@@ -139,7 +143,9 @@ $arrayfields=array(
     't.dateo'=>array('label'=>$langs->trans("CustomerAccountFieldDateOperationShort"), 'checked'=>1),
     't.amount'=>array('label'=>$langs->trans("CustomerAccountFieldamount"), 'checked'=>1),
     't.label'=>array('label'=>$langs->trans("CustomerAccountFieldlabel"), 'checked'=>1),
-    't.datec'=>array('label'=>$langs->trans("CustomerAccountDateCreationShort"), 'checked'=>0, 'position'=>500)
+    't.datec'=>array('label'=>$langs->trans("CustomerAccountDateCreationShort"), 'checked'=>0, 'position'=>500),
+    't.fk_paiement'=>array('label'=>$langs->trans("PaymentMode"), 'checked'=>0),
+    'c.num_paiement'=>array('label'=>$langs->trans("ChequeOrTransferNumber"), 'checked'=>0)
 );
 // Extra fields
 if (is_array($extrafields->attribute_label) && count($extrafields->attribute_label))
@@ -182,6 +188,8 @@ if (empty($reshook))
         $search_dt_end='';
         $search_amount='';
         $search_description='';
+        $search_paymenttype="";
+        $search_payment_num="";
         
     	$search_date_creation='';
     	$search_date_update='';
@@ -259,7 +267,9 @@ $sql .= " t.label,";
 $sql .= " t.fk_customer_account,";
 $sql .= " t.fk_user_author,";
 $sql .= " t.fk_user_modif,";
-$sql .= " t.active";
+$sql .= " t.active,";
+$sql .= " t.fk_paiement,";
+$sql .= " c.num_paiement";
 
 // Add fields from extrafields
 foreach ($extrafields->attribute_label as $key => $val) $sql.=($extrafields->attribute_type[$key] != 'separate' ? ",ef.".$key.' as options_'.$key : '');
@@ -271,18 +281,25 @@ $sql.= " FROM ".MAIN_DB_PREFIX."customer_account_movement as t";
 
 $sql.= " INNER JOIN ".MAIN_DB_PREFIX."customer_account as a ON (t.fk_customer_account = a.rowid)";
 $sql.= " INNER JOIN ".MAIN_DB_PREFIX."societe as s ON (a.fk_societe = s.rowid)";
+$sql.= " INNER JOIN ".MAIN_DB_PREFIX."cheque as c ON (t.fk_cheque = c.rowid)";
 
 if (is_array($extrafields->attribute_label) && count($extrafields->attribute_label)) $sql.= " LEFT JOIN ".MAIN_DB_PREFIX."customer_account_movement_extrafields as ef on (t.rowid = ef.fk_object)";
 //$sql.= " WHERE 1 = 1";
 $sql.= " WHERE s.rowid = ".$socid;
 //$sql.= " WHERE u.entity IN (".getEntity('mytable',1).")";
 
-if ($search_ref) $sql.=natural_search("t.rowid", $search_ref);
+if ($search_ref) $sql .= natural_search("t.rowid", $search_ref);
 if (dol_strlen($search_dt_start)>0) $sql .= " AND t.dateo >= '" . $db->idate($search_dt_start) . "'";
 if (dol_strlen($search_dt_end)>0) $sql .= " AND t.dateo <= '" . $db->idate($search_dt_end) . "'";
-if ($search_amount) $sql.= natural_search("amount",$search_amount);
-if ($search_description) $sql.= natural_search("label",$search_description);
+if ($search_amount) $sql.= natural_search("t.amount",$search_amount);
+if ($search_description) $sql.= natural_search("t.label",$search_description);
 
+if ($search_paymenttype != "") {
+    $paiementcode = dol_getIdFromCode($db,$search_paymenttype,'c_paiement','code','id');
+    $sql .=" AND t.fk_paiement = ".$paiementcode;
+}
+
+if ($search_payment_num != '')  $sql .= natural_search('c.num_paiement', $search_payment_num);
 
 if ($sall)          $sql.= natural_search(array_keys($fieldstosearchall), $sall);
 // Add where from extra fields
@@ -440,7 +457,10 @@ if (! empty($arrayfields['t.dateo']['checked'])) print_liste_field_titre($arrayf
 if (! empty($arrayfields['t.amount']['checked'])) print_liste_field_titre($arrayfields['t.amount']['label'],$_SERVER['PHP_SELF'],'t.amount','',$params,'',$sortfield,$sortorder);
 if (! empty($arrayfields['t.label']['checked'])) print_liste_field_titre($arrayfields['t.label']['label'],$_SERVER['PHP_SELF'],'t.label','',$params,'',$sortfield,$sortorder);
 if (! empty($arrayfields['t.datec']['checked']))  print_liste_field_titre($arrayfields['t.datec']['label'],$_SERVER["PHP_SELF"],"t.datec","",$param,'class="nowrap"',$sortfield,$sortorder);
+if (! empty($arrayfields['t.fk_paiement']['checked']))  print_liste_field_titre($arrayfields['t.fk_paiement']['label'],$_SERVER["PHP_SELF"],"t.fk_paiement","",$param,'class="nowrap"',$sortfield,$sortorder);
+if (! empty($arrayfields['c.num_paiement']['checked']))  print_liste_field_titre($arrayfields['c.num_paiement']['label'],$_SERVER["PHP_SELF"],"c.num_paiement","",$param,'class="nowrap"',$sortfield,$sortorder);
 
+    
 //if (! empty($arrayfields['t.field1']['checked'])) print_liste_field_titre($arrayfields['t.field1']['label'],$_SERVER['PHP_SELF'],'t.field1','',$param,'',$sortfield,$sortorder);
 //if (! empty($arrayfields['t.field2']['checked'])) print_liste_field_titre($arrayfields['t.field2']['label'],$_SERVER['PHP_SELF'],'t.field2','',$param,'',$sortfield,$sortorder);
 // Extra fields
@@ -473,6 +493,14 @@ if (! empty($arrayfields['t.dateo']['checked'])) print '<td class="liste_titre">
 if (! empty($arrayfields['t.amount']['checked'])) print '<td class="liste_titre" width="50"><input type="text" class="flat" name="search_amount" value="'.$search_amount.'" size="10"></td>';
 if (! empty($arrayfields['t.label']['checked'])) print '<td class="liste_titre"><input type="text" class="flat" name="search_description" value="'.$search_description.'" size="10"></td>';
 
+if (! empty($arrayfields['t.fk_paiement']['checked'])) {
+    print '<td class="liste_titre">';
+    $form->select_types_paiements($search_paymenttype,'search_paymenttype','',2);
+    print '</td>';
+}
+if (! empty($arrayfields['c.num_paiement']['checked'])) print '<td class="liste_titre"><input type="text" class="flat" name="search_payment_num" value="'.$search_payment_num.'" size="10"></td>';
+
+            
 //if (! empty($arrayfields['t.field1']['checked'])) print '<td class="liste_titre"><input type="text" class="flat" name="search_field1" value="'.$search_field1.'" size="10"></td>';
 //if (! empty($arrayfields['t.field2']['checked'])) print '<td class="liste_titre"><input type="text" class="flat" name="search_field2" value="'.$search_field2.'" size="10"></td>';
 // Extra fields
@@ -536,6 +564,7 @@ while ($i < min($num, $limit))
                 if (!$i) $totalarray['nbfield'] ++;
                 
                 $key2 = str_replace('t.', '', $key);
+                $key2 = str_replace('c.', '', $key2);
                 if ($key2 == 'rowid')
                 {
                     $hiddenobjvaluesview='&amp;entity='.$obj->entity.
@@ -572,15 +601,24 @@ while ($i < min($num, $limit))
 
                         if ($result >= 0)
                         {
-                            
+                            print '<td>Pago de Factura ' . $facture->getNomUrl(1,'') . "</td>";
                         }
-                        
-                        print '<td>Pago de Factura ' . $facture->getNomUrl(1,'') . "</td>";
+                        else
+                        {
+                            print '<td>' . $obj->$key2 . '</td>';
+                        }
                     }
                     else 
                     {
                         print '<td>' . $obj->$key2 . '</td>';
                     }
+                }
+                else if ($key2 == 'fk_paiement')
+                {
+                    $form->load_cache_types_paiements();
+                    $paiementdesc = $form->cache_types_paiements[$obj->$key2]['label'];
+                    
+                    print '<td>' . $paiementdesc . '</td>';
                 }
                 else
                 {
@@ -703,6 +741,8 @@ else
     $sql .= ' AND type = 2';		// If paying back a credit note, we show all credit notes
 }
 */
+$sql .= ' AND type IN (0,1,2,3,5)';	// Standard invoice, replacement, deposit, situation. Discard 4. Proforma invoice (should not be used. a proforma is an order)
+
 $resql = $db->query($sql);
 if ($resql)
 {
