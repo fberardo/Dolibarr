@@ -286,7 +286,7 @@ if (empty($reshook))
                                 $error++;
                             }
 
-                            $cheque->supplier_used = 1;
+                            $cheque->supplier_used = $paiement_id;
                             $cheque->update($user);
                         }
                         else
@@ -689,8 +689,8 @@ $(document).ready(function () {
             $sql2 = "SELECT";
             $sql2.= " chq.rowid";
             $sql2.= " FROM ".MAIN_DB_PREFIX."cheque chq";
-            $sql2.= " WHERE chq.customer_used = 1";
-            $sql2.= " AND chq.supplier_used = 0";
+            $sql2.= " WHERE chq.customer_used IS NOT NULL";
+            $sql2.= " AND chq.supplier_used IS NULL";
 
             $result2 = $db->query($sql2);
             if ($result2)

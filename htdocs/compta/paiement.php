@@ -293,7 +293,7 @@ if (empty($reshook))
                             $error++;
                         }
 
-                        $cheque->customer_used = 1;
+                        $cheque->customer_used = $paiement_id;
                         $cheque->update($user);
                     }
                     else
@@ -332,7 +332,7 @@ if (empty($reshook))
                     $customerAccountMovement->label = 'Pago de Factura ID['.$key.']';
                     $customerAccountMovement->dateo = $datepaye;
                     $customerAccountMovement->active = 1;
-                    $customerAccountMovement->paiementid = 0;
+                    $customerAccountMovement->paiementid = 0; // dol_getIdFromCode($db,GETPOST('paiementcode'),'c_paiement');
                     //$customerAccountMovement->fk_cheque = NULL;
 
                     $result = $customerAccountMovement->create($user);
@@ -880,8 +880,8 @@ $(document).ready(function () {
         $sql2.= " INNER JOIN ".MAIN_DB_PREFIX."cheque chq ON (mvmt.fk_cheque = chq.rowid)";
         $sql2.= " WHERE acc.fk_societe = ".$facture->socid;
         $sql2.= " AND mvmt.fk_cheque IS NOT NULL";
-        $sql2.= " AND chq.customer_used = 0";
-        $sql2.= " AND chq.supplier_used = 0";
+        $sql2.= " AND chq.customer_used IS NULL";
+        $sql2.= " AND chq.supplier_used IS NULL";
         
         $result2 = $db->query($sql2);
         if ($result2)

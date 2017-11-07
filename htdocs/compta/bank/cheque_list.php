@@ -30,10 +30,9 @@
  */
 
 require '../../main.inc.php';
-require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.class.php';
-require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.facture.class.php';
-require_once DOL_DOCUMENT_ROOT.'/fourn/class/paiementfourn.class.php';
 require_once DOL_DOCUMENT_ROOT.'/compta/bank/class/cheque.class.php';
+require_once DOL_DOCUMENT_ROOT.'/compta/paiement/class/paiement.class.php';
+require_once DOL_DOCUMENT_ROOT.'/fourn/class/paiementfourn.class.php';
 
 $langs->load('companies');
 $langs->load('bills');
@@ -109,6 +108,14 @@ $(document).ready(function () {
     // Array holding selected row IDs
     var table = $(\'#tablacheques\').DataTable({
         \'columnDefs\': [{
+            \'targets\': 0,
+            \'width\': "23%"
+        },
+        {
+            \'targets\': 2,
+            \'width\': "20%"
+        },
+        {
             \'targets\': 3,
             \'searchable\': false,
             \'orderable\': false
@@ -120,11 +127,13 @@ $(document).ready(function () {
         },
         {
             \'targets\': 5,
-            \'orderable\': false
+            \'orderable\': false,
+            \'width\': "15%"
         },
         {
             \'targets\': 6,
-            \'orderable\': false
+            \'orderable\': false,
+            \'width\': "15%"
         }],
         \'order\': [[0, \'asc\']],
         \'ordering\': true,
@@ -146,9 +155,9 @@ $(document).ready(function () {
             },
             \'lengthMenu\': \'Mostrar _MENU_ registros por página\',
             \'zeroRecords\': \'No hay cheques para mostrar\',
-            \'info\': \'Mostrando página _PAGE_ de _PAGES_\',
+            \'info\': \'Mostrando elemento _START_ a _END_ (página _PAGE_ de _PAGES_) de _TOTAL_ registros\',
             \'infoEmpty\': \'No hay cheques para mostrar\',
-            \'infoFiltered\': \' - mostrando de _MAX_ registros\'
+            \'infoFiltered\': \' - Total: _MAX_ registros\'
         },
         \'lengthMenu\': [[10, 25, 50, -1], [10, 25, 50, "All"]]
     });
@@ -168,8 +177,6 @@ $rowcheques = '';
 $sql2 = "SELECT";
 $sql2.= " chq.rowid";
 $sql2.= " FROM ".MAIN_DB_PREFIX."cheque chq";
-//$sql2.= " WHERE chq.customer_used = 1";
-//$sql2.= " AND chq.supplier_used = 0";
 
 $result2 = $db->query($sql2);
 if ($result2)
@@ -183,8 +190,25 @@ if ($result2)
             $cheque = new cheque($db);
             $cheque->fetch($chequeid->rowid);
             
-            $customer = ($cheque->customer_used == 0)?'No':'Sí';
-            $supplier = ($cheque->supplier_used == 0)?'No':'Sí';
+            $customer = 'No';
+            if (isset($cheque->customer_used) && !empty($cheque->customer_used))
+            {
+                $customer = 'Sí';
+                $paymentstatic = new Paiement($db);
+                $paymentstatic->fetch($cheque->customer_used);
+                
+                $customer .= ' (' . $paymentstatic->getNomUrl(0) . ' )';
+            }
+            
+            $supplier = 'No';
+            if (isset($cheque->supplier_used) && !empty($cheque->supplier_used))
+            {
+                $supplier = 'Sí';
+                $paiementfourn = new PaiementFourn($db);
+                $paiementfourn->fetch($cheque->supplier_used);
+                
+                $supplier .= ' (' . $paiementfourn->getNomUrl(0) . ' )';
+            }
             
             $rowcheques .= '<tr>';
             $rowcheques .= '<td>'.$cheque->num_paiement.'</td>';

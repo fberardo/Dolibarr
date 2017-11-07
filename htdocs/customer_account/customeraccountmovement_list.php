@@ -281,7 +281,7 @@ $sql.= " FROM ".MAIN_DB_PREFIX."customer_account_movement as t";
 
 $sql.= " INNER JOIN ".MAIN_DB_PREFIX."customer_account as a ON (t.fk_customer_account = a.rowid)";
 $sql.= " INNER JOIN ".MAIN_DB_PREFIX."societe as s ON (a.fk_societe = s.rowid)";
-$sql.= " INNER JOIN ".MAIN_DB_PREFIX."cheque as c ON (t.fk_cheque = c.rowid)";
+$sql.= " LEFT OUTER JOIN ".MAIN_DB_PREFIX."cheque as c ON (t.fk_cheque = c.rowid)";
 
 if (is_array($extrafields->attribute_label) && count($extrafields->attribute_label)) $sql.= " LEFT JOIN ".MAIN_DB_PREFIX."customer_account_movement_extrafields as ef on (t.rowid = ef.fk_object)";
 //$sql.= " WHERE 1 = 1";

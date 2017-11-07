@@ -208,8 +208,8 @@ if (empty($reshook))
                             $objectcheque->fk_user_author=GETPOST('fk_user_author','int');
                             $objectcheque->fk_user_modif=GETPOST('fk_user_modif','int');
                             $objectcheque->active=GETPOST('active','int');
-                            $objectcheque->customer_used=0;
-                            $objectcheque->supplier_used=0;
+                            $objectcheque->customer_used=NULL;
+                            $objectcheque->supplier_used=NULL;
                             
                             if (! isset($objectcheque->chqemetteur) || empty($objectcheque->chqemetteur))
                             {
@@ -356,8 +356,8 @@ if (empty($reshook))
                             $objectcheque->fk_user_author=GETPOST('fk_user_author','int');
                             $objectcheque->fk_user_modif=GETPOST('fk_user_modif','int');
                             $objectcheque->active=GETPOST('active','int');
-                            $objectcheque->customer_used=0;
-                            $objectcheque->supplier_used=0;
+                            //$objectcheque->customer_used=NULL;
+                            //$objectcheque->supplier_used=NULL;
                             
                             if (! isset($objectcheque->chqemetteur) || empty($objectcheque->chqemetteur))
                             {
