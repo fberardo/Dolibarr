@@ -33,4 +33,5 @@ CustomerAccountBalanceCuentadelCliente=Balance Cuenta del Cliente
 CustomerAccountSaldoCuentaCorriente=Fondo disponible para imputar
 CustomerAccountRestaPagarFacturas=Resta Pagar (Facturas)
 CustomerAccountSaldoCliente=Saldo de la cuenta corriente
+PaiementSelectCheque=Debe seleccionar al menos un cheque
 

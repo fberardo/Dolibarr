@@ -161,12 +161,22 @@ if (empty($reshook))
                 $formquestion[$i++]=array('type' => 'hidden','name' => $key,  'value' => GETPOST($key, 'int'));
             }
         }
-
+        
+        $code = GETPOST('paiementcode');
         // Check parameters
-        if (! GETPOST('paiementcode'))
+        if (! $code)
         {
             setEventMessages($langs->transnoentities('ErrorFieldRequired',$langs->transnoentities('PaymentMode')), null, 'errors');
             $error++;
+        }
+        
+        if ($code == 'CHQ' || code == 'PRE') // Cheque / Cheques a Terceros
+        {
+            if (!isset($_POST["fieldfk_cheque"]) || empty($_POST["fieldfk_cheque"]))
+            {
+                setEventMessages($langs->transnoentities('PaiementSelectCheque'), null, 'errors');
+                $error++;
+            }
         }
 
         if (! empty($conf->banque->enabled))
@@ -260,6 +270,11 @@ if (empty($reshook))
         $paiement->multicurrency_amounts = $multicurrency_amounts;   // Array with all payments dispatching
         $paiement->paiementid   = dol_getIdFromCode($db,GETPOST('paiementcode'),'c_paiement');
         $paiement->note         = GETPOST('comment');
+        
+        if (isset($code) && $code == 'VIR') // Transferencia Bancaria
+        {
+            $paiement->num_paiement = GETPOST('num_paiement');
+        }
 
         if (! $error)
         {
@@ -275,31 +290,43 @@ if (empty($reshook))
         {
             $label='(CustomerInvoicePayment)';
             if (GETPOST('type') == 2) $label='(CustomerInvoicePaymentBack)';
-
-            if (isset($_POST["fieldfk_cheque"]) && !empty($_POST["fieldfk_cheque"]))
+            
+            if (isset($code) && ($code == 'VIR')) // Transferencia Bancaria
             {
-                foreach ($_POST["fieldfk_cheque"] as $value)
+                $result = $paiement->addPaymentToBank($user, 'payment', $label, GETPOST('accountid'), GETPOST('chqemetteur'), GETPOST('chqbank'));
+                if ($result < 0)
                 {
-                    $cheque = new cheque($db);
-                    $result = $cheque->fetch($value);
-
-                    if ($result >= 0)
+                    setEventMessages($paiement->error, $paiement->errors, 'errors');
+                    $error++;
+                }
+            }
+            else if (isset($code) && ($code == 'CHQ' || code == 'PRE')) // Cheque / Cheques a Terceros
+            {
+                if (isset($_POST["fieldfk_cheque"]) && !empty($_POST["fieldfk_cheque"]))
+                {
+                    foreach ($_POST["fieldfk_cheque"] as $value)
                     {
+                        $cheque = new cheque($db);
+                        $result = $cheque->fetch($value);
 
-                        $result2 = $paiement->addPaymentToBank($user, 'payment', $label, GETPOST('accountid'), $cheque->chqemetteur, $cheque->chqbank);
-                        if ($result2 < 0)
+                        if ($result >= 0)
                         {
-                            setEventMessages($paiement->error, $paiement->errors, 'errors');
+
+                            $result2 = $paiement->addPaymentToBank($user, 'payment', $label, GETPOST('accountid'), $cheque->chqemetteur, $cheque->chqbank);
+                            if ($result2 < 0)
+                            {
+                                setEventMessages($paiement->error, $paiement->errors, 'errors');
+                                $error++;
+                            }
+
+                            $cheque->customer_used = $paiement_id;
+                            $cheque->update($user);
+                        }
+                        else
+                        {
+                            setEventMessages($cheque->error, $cheque->errors, 'errors');
                             $error++;
                         }
-
-                        $cheque->customer_used = $paiement_id;
-                        $cheque->update($user);
-                    }
-                    else
-                    {
-                        setEventMessages($cheque->error, $cheque->errors, 'errors');
-                        $error++;
                     }
                 }
             }
@@ -332,9 +359,9 @@ if (empty($reshook))
                     $customerAccountMovement->label = 'Pago de Factura ID['.$key.']';
                     $customerAccountMovement->dateo = $datepaye;
                     $customerAccountMovement->active = 1;
-                    $customerAccountMovement->paiementid = 0; // dol_getIdFromCode($db,GETPOST('paiementcode'),'c_paiement');
+                    $customerAccountMovement->paiementid = dol_getIdFromCode($db,GETPOST('paiementcode'),'c_paiement');
                     //$customerAccountMovement->fk_cheque = NULL;
-
+                    
                     $result = $customerAccountMovement->create($user);
 
                     if ($result < 0)
@@ -632,7 +659,7 @@ $(document).ready(function () {
                         function setPaiementCode()
                         {
                             var code = $("#selectpaiementcode option:selected").val();
-
+                            
                             if (code == \'CHQ\' || code == \'PRE\')
                             {
                                 $(\'input[type="search"]\').prop("disabled", false);
@@ -647,6 +674,23 @@ $(document).ready(function () {
                                 $(\'select[name="tablacheques_length"]\').prop("disabled", true);
                                 $(\'input[type="checkbox"]\').prop("disabled", true);
                                 $(\'.dataTables_paginate\').hide();
+                            }
+                            
+                            if (code == \'VIR\')
+                            {
+                                $(\'.fieldenableddyn\').prop("disabled", false);
+                                
+                                if ($(\'#fieldchqemetteur\').val() == \'\')
+                                {
+                                    var emetteur = ('.$facture->type.' == 2) ? \''.dol_escape_js(dol_escape_htmltag($conf->global->MAIN_INFO_SOCIETE_NOM)).'\' : jQuery(\'#thirdpartylabel\').val();
+                                    $(\'#fieldchqemetteur\').val(emetteur);
+                                }
+                            }
+                            else
+                            {
+                                $(\'.fieldenableddyn\').prop("disabled", true);
+                                
+                                $(\'#fieldchqemetteur\').val(\'\');
                             }
                         }
 
@@ -869,6 +913,38 @@ $(document).ready(function () {
             print '<td>&nbsp;</td>';
         }
         print "</tr>\n";
+        
+        // Cheque number
+        print '<tr>';
+        print '<td>'.$langs->trans('Numero');
+        print '<em> ( '.$langs->trans("ChequeOrTransferNumber").' )</em>';
+        print '</td>';
+        print '<td><input class="fieldenableddyn" name="num_paiement" type="text" value="'.$paymentnum.'"></td>';
+        print '</tr>';
+        
+        // Check transmitter
+        print '<tr>';
+        print '<td>'.$langs->trans('CheckTransmitter');
+        print '<em> ( '.$langs->trans("ChequeMaker").' )</em>';
+        print '</td>';
+        print '<td><input class="fieldenableddyn" id="fieldchqemetteur" name="chqemetteur" size="30" type="text" value="'.GETPOST('chqemetteur').'"></td>';
+        print '</tr>';
+        
+        // Bank name
+        print '<tr>';
+        print '<td>'.$langs->trans('Bank');
+        print '<em> ( '.$langs->trans("ChequeBank").' )</em>';
+        print '</td>';
+        print '<td><input class="fieldenableddyn" name="chqbank" size="30" type="text" value="'.GETPOST('chqbank').'"></td>';
+        print '</tr>';
+        
+        // Comments
+	print '<tr>';
+        print '<td>'.$langs->trans('Comments').'</td>';
+	print '<td class="tdtop">';
+	print '<textarea name="comment" wrap="soft" class="quatrevingtpercent" rows="'.ROWS_3.'">'.GETPOST('comment').'</textarea>';
+        print '</td></tr>';
+        
         print '</table>';
         
         // Cheques
@@ -917,9 +993,9 @@ $(document).ready(function () {
                        <tr>
                           <th><input name="select_all" value="1" type="checkbox"></th>
                           <th>Hidden ID</th>
-                          <th>'.$langs->trans('Numero').'<em>('.$langs->trans("ChequeOrTransferNumber").')</em></th>
-                          <th>'.$langs->trans("ChequeMaker").'</th>
-                          <th>'.$langs->trans('Bank').'<em>('.$langs->trans("ChequeBank").')</em></th>
+                          <th>'.$langs->trans('Numero').'<em> ('.$langs->trans("ChequeOrTransferNumber"). ')</em></th>
+                          <th>'.$langs->trans('CheckTransmitter').'<em> ( '.$langs->trans("ChequeMaker"). ')</em></th>
+                          <th>'.$langs->trans('Bank').'<em> ( '.$langs->trans("ChequeBank"). ')</em></th>
                           <th>Fecha</th>
                           <th>Monto</th>
                        </tr>

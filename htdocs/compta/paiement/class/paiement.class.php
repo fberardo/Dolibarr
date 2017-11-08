@@ -527,6 +527,8 @@ class Paiement extends CommonObject
                     {
                         if ($mode == 'payment')
                         {
+                            require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
+                            
                             $fac = new Facture($this->db);
                             $fac->fetch($key);
                             $fac->fetch_thirdparty();
@@ -545,6 +547,8 @@ class Paiement extends CommonObject
                         }
                         if ($mode == 'payment_supplier')
                         {
+                            require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.facture.class.php';
+                            
                             $fac = new FactureFournisseur($this->db);
                             $fac->fetch($key);
                             $fac->fetch_thirdparty();

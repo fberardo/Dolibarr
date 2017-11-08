@@ -39,6 +39,7 @@ $langs->load('companies');
 $langs->load('bills');
 $langs->load('banks');
 $langs->load('compta');
+$langs->load('customeraccount@customer_account');
 
 $action     = GETPOST('action','alpha');
 $confirm	= GETPOST('confirm');
@@ -186,12 +187,22 @@ if (empty($reshook))
                 $formquestion[$i++]=array('type' => 'hidden','name' => $key,  'value' => GETPOST($key, 'int'));
             }
         }
-
+        
+        $code = GETPOST('paiementcode');
         // Check parameters
-        if (! GETPOST('paiementcode'))
+        if (! $code)
         {
             setEventMessages($langs->transnoentities('ErrorFieldRequired',$langs->transnoentities('PaymentMode')), null, 'errors');
             $error++;
+        }
+        
+        if ($code == 'CHQ' || code == 'PRE') // Cheque / Cheques a Terceros
+        {
+            if (!isset($_POST["fieldfk_cheque"]) || empty($_POST["fieldfk_cheque"]))
+            {
+                setEventMessages($langs->transnoentities('PaiementSelectCheque'), null, 'errors');
+                $error++;
+            }
         }
 
         if (! empty($conf->banque->enabled))
@@ -257,6 +268,13 @@ if (empty($reshook))
             $paiement->multicurrency_amounts = $multicurrency_amounts;
             $paiement->paiementid   = dol_getIdFromCode($db,GETPOST('paiementcode'),'c_paiement');
             $paiement->note         = $_POST['comment'];
+            
+            $code = GETPOST('paiementcode');
+            if (isset($code) && $code == 'VIR') // Transferencia Bancaria
+            {
+                $paiement->num_paiement = GETPOST('num_paiement');
+            }
+        
             if (! $error)
             {
                 $paiement_id = $paiement->create($user,(GETPOST('closepaidinvoices')=='on'?1:0));
@@ -269,30 +287,43 @@ if (empty($reshook))
 
             if (! $error)
             {
-                if (isset($_POST["fieldfk_cheque"]) && !empty($_POST["fieldfk_cheque"]))
+                if (isset($code) && ($code == 'VIR')) // Transferencia Bancaria
                 {
-                    foreach ($_POST["fieldfk_cheque"] as $value)
+                    $result = $paiement->addPaymentToBank($user, 'payment_supplier', '(SupplierInvoicePayment)', GETPOST('accountid'), '', '');
+                    if ($result < 0)
                     {
-                        $cheque = new cheque($db);
-                        $result = $cheque->fetch($value);
-
-                        if ($result >= 0)
+                        setEventMessages($paiement->error, $paiement->errors, 'errors');
+                        $error++;
+                    }
+                }
+                else if (isset($code) && ($code == 'CHQ' || code == 'PRE')) // Cheque / Cheques a Terceros
+                {
+                
+                    if (isset($_POST["fieldfk_cheque"]) && !empty($_POST["fieldfk_cheque"]))
+                    {
+                        foreach ($_POST["fieldfk_cheque"] as $value)
                         {
+                            $cheque = new cheque($db);
+                            $result = $cheque->fetch($value);
 
-                            $result2 = $paiement->addPaymentToBank($user, 'payment_supplier', '(SupplierInvoicePayment)', GETPOST('accountid'), $cheque->chqemetteur, $cheque->chqbank);
-                            if ($result2 < 0)
+                            if ($result >= 0)
                             {
-                                setEventMessages($paiement->error, $paiement->errors, 'errors');
+
+                                $result2 = $paiement->addPaymentToBank($user, 'payment_supplier', '(SupplierInvoicePayment)', GETPOST('accountid'), $cheque->chqemetteur, $cheque->chqbank);
+                                if ($result2 < 0)
+                                {
+                                    setEventMessages($paiement->error, $paiement->errors, 'errors');
+                                    $error++;
+                                }
+
+                                $cheque->supplier_used = $paiement_id;
+                                $cheque->update($user);
+                            }
+                            else
+                            {
+                                setEventMessages($cheque->error, $cheque->errors, 'errors');
                                 $error++;
                             }
-
-                            $cheque->supplier_used = $paiement_id;
-                            $cheque->update($user);
-                        }
-                        else
-                        {
-                            setEventMessages($cheque->error, $cheque->errors, 'errors');
-                            $error++;
                         }
                     }
                 }
@@ -575,6 +606,15 @@ $(document).ready(function () {
                                         $(\'input[type="checkbox"]\').prop("disabled", true);
                                         $(\'.dataTables_paginate\').hide();
                                     }
+                                    
+                                    if (code == \'VIR\')
+                                    {
+                                        $(\'.fieldenableddyn\').prop("disabled", false);
+                                    }
+                                    else
+                                    {
+                                        $(\'.fieldenableddyn\').prop("disabled", true);
+                                    }
                                 }';
             print "\n".'
                         
@@ -679,9 +719,16 @@ $(document).ready(function () {
                 print '<tr><td>&nbsp;</td></tr>';
             }
             
+            print '<tr><td>'.$langs->trans('Numero').'</td>';
+            print '<td>';
+            print '<input class="fieldenableddyn" name="num_paiement" type="text" value="'.(empty($_POST['num_paiement'])?'':$_POST['num_paiement']).'">';
+            print '</td></tr>';
+            
             print '<tr><td>'.$langs->trans('Comments').'</td>';
             print '<td class="tdtop">';
-            print '<textarea name="comment" wrap="soft" class="quatrevingtpercent" rows="'.ROWS_3.'">'.(empty($_POST['comment'])?'':$_POST['comment']).'</textarea></td></tr>';
+            print '<textarea name="comment" wrap="soft" class="quatrevingtpercent" rows="'.ROWS_3.'">'.(empty($_POST['comment'])?'':$_POST['comment']).'</textarea>';
+            print '</td></tr>';
+            
             print '</table>';
             
             // Cheques
