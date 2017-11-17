@@ -452,32 +452,32 @@ class Paiement extends CommonObject
 
         if (! empty($conf->banque->enabled))
         {
-        	if ($accountid <= 0)
-        	{
-        		$this->error='Bad value for parameter accountid';
-        		dol_syslog(get_class($this).'::addPaymentToBank '.$this->error, LOG_ERR);
-        		return -1;
-        	}
+            if ($accountid <= 0)
+            {
+                    $this->error='Bad value for parameter accountid';
+                    dol_syslog(get_class($this).'::addPaymentToBank '.$this->error, LOG_ERR);
+                    return -1;
+            }
 
-        	$this->db->begin();
+            $this->db->begin();
 
-        	$this->fk_account=$accountid;
+            $this->fk_account=$accountid;
 
-        	require_once DOL_DOCUMENT_ROOT.'/compta/bank/class/account.class.php';
+            require_once DOL_DOCUMENT_ROOT.'/compta/bank/class/account.class.php';
 
             dol_syslog("$user->id,$mode,$label,$this->fk_account,$emetteur_nom,$emetteur_banque");
 
             $acc = new Account($this->db);
             $result=$acc->fetch($this->fk_account);
-			
-			$totalamount=$this->amount;
+            
+            $totalamount=$this->amount;
             if (empty($totalamount)) $totalamount=$this->total; // For backward compatibility
             
             // if dolibarr currency != bank currency then we received an amount in customer currency (currently I don't manage the case : my currency is USD, the customer currency is EUR and he paid me in GBP. Seems no sense for me)
             if (!empty($conf->multicurrency->enabled) && $conf->currency != $acc->currency_code) $totalamount=$this->multicurrency_amount;
 			
             if ($mode == 'payment_supplier') $totalamount=-$totalamount;
-
+            
             // Insert payment into llx_bank
             $bank_line_id = $acc->addline(
                 $this->datepaye,
@@ -495,18 +495,21 @@ class Paiement extends CommonObject
             // On connait ainsi le paiement qui a genere l'ecriture bancaire
             if ($bank_line_id > 0)
             {
-                $result=$this->update_fk_bank($bank_line_id);
-                if ($result <= 0)
+                if ($mode == 'payment_supplier')
                 {
-                    $error++;
-                    dol_print_error($this->db);
+                    $result=$this->update_fk_bank($bank_line_id);
+                    if ($result <= 0)
+                    {
+                        $error++;
+                        dol_print_error($this->db);
+                    }
                 }
 
                 // Add link 'payment', 'payment_supplier' in bank_url between payment and bank transaction
                 if ( ! $error)
                 {
                     $url='';
-                    if ($mode == 'payment') $url=DOL_URL_ROOT.'/compta/paiement/card.php?id=';
+                    //if ($mode == 'payment') $url=DOL_URL_ROOT.'/compta/paiement/card.php?id=';
                     if ($mode == 'payment_supplier') $url=DOL_URL_ROOT.'/fourn/paiement/card.php?id=';
                     if ($url)
                     {
@@ -527,22 +530,26 @@ class Paiement extends CommonObject
                     {
                         if ($mode == 'payment')
                         {
-                            require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
+                            /*require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
                             
                             $fac = new Facture($this->db);
                             $fac->fetch($key);
                             $fac->fetch_thirdparty();
-                            if (! in_array($fac->thirdparty->id,$linkaddedforthirdparty)) // Not yet done for this thirdparty
+                            if (! in_array($fac->thirdparty->id,$linkaddedforthirdparty)) // Not yet done for this thirdparty*/
+                            if (! in_array($key,$linkaddedforthirdparty)) // Not yet done for this thirdparty*/
                             {
                                 $result=$acc->add_url_line(
                                     $bank_line_id,
-                                    $fac->thirdparty->id,
+                                    //$fac->thirdparty->id,
+                                    $key,
                                     DOL_URL_ROOT.'/comm/card.php?socid=',
-                                    $fac->thirdparty->name,
+                                    //$fac->thirdparty->name,
+                                    $value,
                                     'company'
                                 );
                                 if ($result <= 0) dol_syslog(get_class($this).'::addPaymentToBank '.$this->db->lasterror());
-                                $linkaddedforthirdparty[$fac->thirdparty->id]=$fac->thirdparty->id;  // Mark as done for this thirdparty
+                                //$linkaddedforthirdparty[$fac->thirdparty->id]=$fac->thirdparty->id;  // Mark as done for this thirdparty
+                                $linkaddedforthirdparty[$key]=$key;  // Mark as done for this thirdparty
                             }
                         }
                         if ($mode == 'payment_supplier')
@@ -568,25 +575,25 @@ class Paiement extends CommonObject
                     }
                 }
 
-				// Add link 'WithdrawalPayment' in bank_url
-				if (! $error && $label == '(WithdrawalPayment)')
-				{
-					$result=$acc->add_url_line(
-						$bank_line_id,
-						$this->id_prelevement,
-						DOL_URL_ROOT.'/compta/prelevement/card.php?id=',
-						$this->num_paiement,
-						'withdraw'
-					);
-				}
+                // Add link 'WithdrawalPayment' in bank_url
+                if (! $error && $label == '(WithdrawalPayment)')
+                {
+                    $result=$acc->add_url_line(
+                            $bank_line_id,
+                            $this->id_prelevement,
+                            DOL_URL_ROOT.'/compta/prelevement/card.php?id=',
+                            $this->num_paiement,
+                            'withdraw'
+                    );
+                }
 
-	            if (! $error && ! $notrigger)
-				{
-					// Appel des triggers
-					$result=$this->call_trigger('PAYMENT_ADD_TO_BANK', $user);
-				    if ($result < 0) { $error++; }
-				    // Fin appel triggers
-				}
+                if (! $error && ! $notrigger)
+                {
+                    // Appel des triggers
+                    $result=$this->call_trigger('PAYMENT_ADD_TO_BANK', $user);
+                    if ($result < 0) { $error++; }
+                    // Fin appel triggers
+                }
             }
             else
 			{

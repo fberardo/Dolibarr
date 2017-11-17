@@ -398,10 +398,10 @@ class Account extends CommonObject
      */
     function addline($date, $oper, $label, $amount, $num_chq, $categorie, User $user, $emetteur='',$banque='')
     {
-	    // Deprecatîon warning
-	    if (is_numeric($oper)) {
-		    dol_syslog(__METHOD__ . ": using numeric operations is deprecated", LOG_WARNING);
-	    }
+        // Deprecatîon warning
+        if (is_numeric($oper)) {
+                dol_syslog(__METHOD__ . ": using numeric operations is deprecated", LOG_WARNING);
+        }
 
         // Clean parameters
         $emetteur=trim($emetteur);
@@ -447,53 +447,53 @@ class Account extends CommonObject
 
         $datev = $date;
 
-		$accline = new AccountLine($this->db);
-		$accline->datec = $now;
-		$accline->dateo = $date;
-		$accline->datev = $datev;
-		$accline->label = $label;
-		$accline->amount = $amount;
-		$accline->fk_user_author = $user->id;
-		$accline->fk_account = $this->rowid;
-		$accline->fk_type = $oper;
+        $accline = new AccountLine($this->db);
+        $accline->datec = $now;
+        $accline->dateo = $date;
+        $accline->datev = $datev;
+        $accline->label = $label;
+        $accline->amount = $amount;
+        $accline->fk_user_author = $user->id;
+        $accline->fk_account = $this->rowid;
+        $accline->fk_type = $oper;
 
-		if ($num_chq) {
-			$accline->num_chq = $num_chq;
-		}
+        if ($num_chq) {
+                $accline->num_chq = $num_chq;
+        }
 
-		if ($emetteur) {
-			$accline->emetteur = $emetteur;
-		}
+        if ($emetteur) {
+                $accline->emetteur = $emetteur;
+        }
 
-		if ($banque) {
-			$accline->bank_chq = $banque;
-		}
+        if ($banque) {
+                $accline->bank_chq = $banque;
+        }
 
-		if ($accline->insert() > 0) {
+        if ($accline->insert() > 0) {
 
-			if ($categorie>0) {
-				$sql = "INSERT INTO ".MAIN_DB_PREFIX."bank_class (";
-				$sql .= "lineid, fk_categ";
-				$sql .= ") VALUES (";
-				$sql .= " ".$accline->id.", ".$categorie;
-				$sql .= ")";
+            if ($categorie>0) {
+                $sql = "INSERT INTO ".MAIN_DB_PREFIX."bank_class (";
+                $sql .= "lineid, fk_categ";
+                $sql .= ") VALUES (";
+                $sql .= " ".$accline->id.", ".$categorie;
+                $sql .= ")";
 
-				$result = $this->db->query($sql);
-				if (!$result) {
-					$this->error = $this->db->lasterror();
-					$this->db->rollback();
-					return -3;
-				}
-			}
+                $result = $this->db->query($sql);
+                if (!$result) {
+                    $this->error = $this->db->lasterror();
+                    $this->db->rollback();
+                    return -3;
+                }
+            }
 
-			$this->db->commit();
-			return $accline->id;
-		} else {
-			$this->error = $this->db->lasterror();
-			$this->db->rollback();
-			return -2;
-		}
-	}
+            $this->db->commit();
+            return $accline->id;
+        } else {
+            $this->error = $this->db->lasterror();
+            $this->db->rollback();
+            return -2;
+        }
+    }
 
     /**
      *  Create bank account into database

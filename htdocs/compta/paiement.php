@@ -48,7 +48,7 @@ $confirm	= GETPOST('confirm');
 
 $facid		= GETPOST('facid','int');
 $socname	= GETPOST('socname');
-$accountid	= GETPOST('accountid');
+//$accountid	= GETPOST('accountid');
 $paymentnum	= GETPOST('num_paiement');
 
 $sortfield	= GETPOST('sortfield','alpha');
@@ -170,7 +170,7 @@ if (empty($reshook))
             $error++;
         }
         
-        if ($code == 'CHQ' || code == 'PRE') // Cheque / Cheques a Terceros
+        if ($code == 'CHQ' || code == 'CHT') // Cheque / Cheques a Terceros
         {
             if (!isset($_POST["fieldfk_cheque"]) || empty($_POST["fieldfk_cheque"]))
             {
@@ -179,7 +179,7 @@ if (empty($reshook))
             }
         }
 
-        if (! empty($conf->banque->enabled))
+        /*if (! empty($conf->banque->enabled))
         {
             // If bank module is on, account is required to enter a payment
             if (GETPOST('accountid') <= 0)
@@ -187,7 +187,7 @@ if (empty($reshook))
                 setEventMessages($langs->transnoentities('ErrorFieldRequired',$langs->transnoentities('AccountToCredit')), null, 'errors');
                 $error++;
             }
-        }
+        }*/
 
         if (empty($totalpayment) && empty($multicurrency_totalpayment) && empty($atleastonepaymentnotnull))
         {
@@ -253,7 +253,7 @@ if (empty($reshook))
             }
         }
 
-        if (! empty($conf->banque->enabled))
+        /*if (! empty($conf->banque->enabled))
         {
             // Si module bank actif, un compte est obligatoire lors de la saisie d'un paiement
             if (GETPOST('accountid') <= 0)
@@ -261,7 +261,7 @@ if (empty($reshook))
                     setEventMessages($langs->trans('ErrorFieldRequired',$langs->transnoentities('AccountToCredit')), null, 'errors');
                     $error++;
             }
-        }
+        }*/
 
         // Creation of payment line
         $paiement = new Paiement($db);
@@ -288,7 +288,7 @@ if (empty($reshook))
 
         if (! $error)
         {
-            $label='(CustomerInvoicePayment)';
+            /*$label='(CustomerInvoicePayment)';
             if (GETPOST('type') == 2) $label='(CustomerInvoicePaymentBack)';
             
             if (isset($code) && ($code == 'VIR')) // Transferencia Bancaria
@@ -300,7 +300,7 @@ if (empty($reshook))
                     $error++;
                 }
             }
-            else if (isset($code) && ($code == 'CHQ' || code == 'PRE')) // Cheque / Cheques a Terceros
+            else */if (isset($code) && ($code == 'CHQ' || code == 'CHT')) // Cheque / Cheques a Terceros
             {
                 if (isset($_POST["fieldfk_cheque"]) && !empty($_POST["fieldfk_cheque"]))
                 {
@@ -312,12 +312,12 @@ if (empty($reshook))
                         if ($result >= 0)
                         {
 
-                            $result2 = $paiement->addPaymentToBank($user, 'payment', $label, GETPOST('accountid'), $cheque->chqemetteur, $cheque->chqbank);
+                            /*$result2 = $paiement->addPaymentToBank($user, 'payment', $label, GETPOST('accountid'), $cheque->chqemetteur, $cheque->chqbank);
                             if ($result2 < 0)
                             {
                                 setEventMessages($paiement->error, $paiement->errors, 'errors');
                                 $error++;
-                            }
+                            }*/
 
                             $cheque->customer_used = $paiement_id;
                             $cheque->update($user);
@@ -487,11 +487,61 @@ function updateDataTableSelectAllCtrl(table){
             chkbox_select_all.indeterminate = true;
         }
     }
+    
+    updateDataTableSelectedInfo(table);
 }
+
+function updateDataTableSelectedInfo(table) {
+    
+    var totalSelectedAmount = 0, totalSelected = rows_selected[1].length;
+    
+    //$.each($chkbox_checked, function( index, value ) {
+    $.each(rows_selected[1], function( index, value ) {
+        // Get row data
+        /*var $row = value.closest(\'tr\');
+        
+        //var data = table.row($row).data();*/
+        
+        /*var $chkbox = $(\'#check_\' + value, $table);
+        console.log($chkbox);
+        
+        var $row = $chkbox.closest(\'tr\');
+        console.log($row);
+        
+        var data = table.row($row).data();
+        
+        // Get row Amount
+        var rowAmount = data[6];*/
+        
+        var rowAmount = value;
+
+        // Sumarize
+        totalSelectedAmount += intVal(rowAmount);
+    });
+    
+    // Update footer
+    $( table.column( 2 ).footer() ).html(
+        \'Seleccionado (\' + totalSelected + \') : $ \' + totalSelectedAmount
+    );
+    
+}
+
+// Remove the formatting to get integer data for summation
+function intVal( i ) {
+    var valuee = typeof i === \'string\' ?
+        i.replace(/[\$.]/g, \'\').replace(/[\$,]/g, \'.\')*1 :
+            typeof i === \'number\' ? i : 0
+    
+    return valuee;
+};
 
 $(document).ready(function () {
     // Array holding selected row IDs
-    var rows_selected = [];
+    //rows_selected = [];
+    //rows_selected = [[]];
+    rows_selected_0 = [];
+    rows_selected_1 = [];
+    rows_selected = [rows_selected_0, rows_selected_1]
     var table = $(\'#tablacheques\').DataTable({
         \'columnDefs\': [{
         \'targets\': 0,
@@ -515,7 +565,8 @@ $(document).ready(function () {
             var rowId = data[1];
 
             // If row ID is in the list of selected row IDs
-            if($.inArray(rowId, rows_selected) !== -1) {
+            //if($.inArray(rowId, rows_selected) !== -1) {
+            if($.inArray(rowId, rows_selected[0]) !== -1) {
                 $(row).find(\'input[type="checkbox"]\').prop(\'checked\', true);
                 $(row).addClass(\'selected\');
             }
@@ -542,7 +593,35 @@ $(document).ready(function () {
             \'infoEmpty\': \'No hay cheques para mostrar\',
             \'infoFiltered\': \' - mostrando de _MAX_ registros\'
         },
-        \'lengthMenu\': [[10, 25, 50, -1], [10, 25, 50, "All"]]
+        \'lengthMenu\': [[10, 25, 50, -1], [10, 25, 50, "All"]],
+        \'footerCallback\': function ( row, data, start, end, display ) {
+            var api = this.api(), data;
+            
+            // Total over all pages
+            total = api
+                .column( 6 )
+                .data()
+                .reduce( function (a, b) {
+                    return intVal(a) + intVal(b);
+                }, 0 );
+            
+            // Total over this page
+            pageTotal = api
+                .column( 6, { page: \'current\'} )
+                .data()
+                .reduce( function (a, b) {
+                    return intVal(a) + intVal(b);
+                }, 0 );
+            
+            // Update footer
+            $( api.column( 5 ).footer() ).html(
+                \'Total:\'
+            );
+            $( api.column( 6 ).footer() ).html(
+                //\'$ \' + pageTotal + \' ( $\'+ total + \' total)\'
+                \'$ \' + pageTotal
+            );
+        }
     });
 
     // Handle click on checkbox
@@ -554,19 +633,27 @@ $(document).ready(function () {
 
         // Get row ID
         var rowId = data[1];
+        
+        // Get row Amount
+        var rowAmount = data[6];
 
         // Determine whether row ID is in the list of selected row IDs
-        var index = $.inArray(rowId, rows_selected);
+        //var index = $.inArray(rowId, rows_selected);
+        var index = $.inArray(rowId, rows_selected[0]);
 
         // If checkbox is checked and row ID is not in list of selected row IDs
         if(this.checked && index === -1) {
-           rows_selected.push(rowId);
+            //rows_selected.push(rowId);
+            rows_selected[0].push(rowId);
+            rows_selected[1].push(rowAmount);
 
         // Otherwise, if checkbox is not checked and row ID is in list of selected row IDs
         } else if (!this.checked && index !== -1) {
-           rows_selected.splice(index, 1);
+            //rows_selected.splice(index, 1);
+            rows_selected[0].splice(index, 1);
+            rows_selected[1].splice(index, 1);
         }
-
+        
         if(this.checked) {
            $row.addClass(\'selected\');
         } else {
@@ -608,7 +695,7 @@ $(document).ready(function () {
         var form = this;
 
         // Iterate over all selected checkboxes
-        $.each(rows_selected, function(index, rowId) {
+        $.each(rows_selected[0], function(index, rowId) {
             // Create a hidden element
             $(form).append(
                 $(\'<input>\')
@@ -620,6 +707,7 @@ $(document).ready(function () {
     });
 
     selectChequesInit();
+    updateDataTableSelectedInfo(table);
 
     function selectChequesInit() {
         var selectedCheques = $(\'input[name="hiddencheckboxes"]\');
@@ -660,7 +748,7 @@ $(document).ready(function () {
                         {
                             var code = $("#selectpaiementcode option:selected").val();
                             
-                            if (code == \'CHQ\' || code == \'PRE\')
+                            if (code == \'CHQ\' || code == \'CHT\')
                             {
                                 $(\'input[type="search"]\').prop("disabled", false);
                                 $(\'select[name="tablacheques_length"]\').prop("disabled", false);
@@ -899,7 +987,7 @@ $(document).ready(function () {
         print '</tr>';
         
         // Bank account
-        print '<tr>';
+        /*print '<tr>';
         if (! empty($conf->banque->enabled))
         {
             if ($facture->type != 2) print '<td><span class="fieldrequired">'.$langs->trans('AccountToCredit').'</span></td>';
@@ -912,20 +1000,20 @@ $(document).ready(function () {
         {
             print '<td>&nbsp;</td>';
         }
-        print "</tr>\n";
+        print "</tr>\n";*/
         
-        // Cheque number
+        // Cheque/Transfer number
         print '<tr>';
         print '<td>'.$langs->trans('Numero');
-        print '<em> ( '.$langs->trans("ChequeOrTransferNumber").' )</em>';
+        print '<em> ( '.$langs->trans("TransferNumber").' )</em>';
         print '</td>';
         print '<td><input class="fieldenableddyn" name="num_paiement" type="text" value="'.$paymentnum.'"></td>';
         print '</tr>';
         
-        // Check transmitter
+        // Check/Transfer transmitter
         print '<tr>';
         print '<td>'.$langs->trans('CheckTransmitter');
-        print '<em> ( '.$langs->trans("ChequeMaker").' )</em>';
+        print '<em> ( '.$langs->trans("TransferOnlyMaker").' )</em>';
         print '</td>';
         print '<td><input class="fieldenableddyn" id="fieldchqemetteur" name="chqemetteur" size="30" type="text" value="'.GETPOST('chqemetteur').'"></td>';
         print '</tr>';
@@ -933,7 +1021,7 @@ $(document).ready(function () {
         // Bank name
         print '<tr>';
         print '<td>'.$langs->trans('Bank');
-        print '<em> ( '.$langs->trans("ChequeBank").' )</em>';
+        print '<em> ( '.$langs->trans("TransferBank").' )</em>';
         print '</td>';
         print '<td><input class="fieldenableddyn" name="chqbank" size="30" type="text" value="'.GETPOST('chqbank').'"></td>';
         print '</tr>';
@@ -993,14 +1081,21 @@ $(document).ready(function () {
                        <tr>
                           <th><input name="select_all" value="1" type="checkbox"></th>
                           <th>Hidden ID</th>
-                          <th>'.$langs->trans('Numero').'<em> ('.$langs->trans("ChequeOrTransferNumber"). ')</em></th>
-                          <th>'.$langs->trans('CheckTransmitter').'<em> ( '.$langs->trans("ChequeMaker"). ')</em></th>
-                          <th>'.$langs->trans('Bank').'<em> ( '.$langs->trans("ChequeBank"). ')</em></th>
-                          <th>Fecha</th>
-                          <th>Monto</th>
+                          <th>'.$langs->trans('Numero').'<em> ( '.$langs->trans("ChequeNumber"). ' )</em></th>
+                          <th>'.$langs->trans('CheckTransmitter').'<em> ( '.$langs->trans("ChequeOnlyMaker"). ' )</em></th>
+                          <th>'.$langs->trans('Bank').'<em> ( '.$langs->trans("ChequeBank"). ' )</em></th>
+                          <th>'.$langs->trans('Date').'</th>
+                          <th>'.$langs->trans('CustomerAccountFieldamount').'</th>
                        </tr>
                     </thead>
                     <tbody>'.$rowcheques.'</tbody>
+                        <tfoot><tr><th align="left"></th>
+                        <th align="left"></th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th align="right"></th>
+                        <th align="left"></th></tr></tfoot>
             </table>';
 
 	dol_fiche_end();
