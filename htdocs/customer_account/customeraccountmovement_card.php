@@ -48,6 +48,7 @@ require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
 require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
 dol_include_once('/customer_account/class/customeraccountmovement.class.php');
 require_once DOL_DOCUMENT_ROOT.'/compta/bank/class/cheque.class.php';
+require_once DOL_DOCUMENT_ROOT.'/compta/paiement/class/paiement.class.php';
 
 // Load traductions files requiredby by page
 $langs->load("customeraccount@customer_account");
@@ -63,12 +64,20 @@ $cancel     = GETPOST('cancel');
 $backtopage = GETPOST('backtopage');
 $myparam	= GETPOST('myparam','alpha');
 $paymentnum	= GETPOST('num_paiement');
+$accountid	= GETPOST('accountid');
 
 
 $search_amount=GETPOST('search_amount','alpha');
 $search_description=GETPOST('search_description','alpha');
 
 
+$societe = new Societe($db);
+//if ($socid > 0 && empty($object->id))
+//{
+    // Load data of third party
+    $res = $societe->fetch($socid);
+    $thirdpartylabel = $societe->nom;
+//}
 
 if (empty($action) && empty($id) && empty($ref)) $action='view';
 
@@ -168,6 +177,21 @@ if (empty($reshook))
                     $error++;
                     setEventMessages($langs->trans("ErrorFieldRequired",$langs->transnoentitiesnoconv("CustomerAccountFieldamount")), null, 'errors');
                 }
+                else if (!is_numeric($object->amount))
+                {
+                    $error++;
+                    setEventMessages($langs->trans("ErrorFieldMustBeNumber",$langs->transnoentitiesnoconv("CustomerAccountFieldamount")), null, 'errors');
+                }
+                else
+                {
+                    $object->amount = price2num($object->amount);
+                    if ($object->amount <= 0)
+                    {
+                        $error++;
+                        setEventMessages($langs->trans("ErrorFieldCantBeNegative",$langs->transnoentitiesnoconv("CustomerAccountFieldamount")), null, 'errors');
+                    }
+                }
+                
                 if (! isset($object->label) || empty($object->label))
                 {
                     $error++;
@@ -178,6 +202,16 @@ if (empty($reshook))
                     $error++;
                     setEventMessages($langs->trans("ErrorFieldRequired",$langs->transnoentitiesnoconv("PaymentMode")), null, 'errors');
                 }
+                
+                if (! empty($conf->banque->enabled))
+                {
+                    // If bank module is on, account is required to enter a payment
+                    if (GETPOST('accountid') <= 0)
+                    {
+                        setEventMessages($langs->transnoentities('ErrorFieldRequired',$langs->transnoentities('AccountToCredit')), null, 'errors');
+                        $error++;
+                    }
+                }
 
 		if (! $error)
 			
@@ -185,11 +219,36 @@ if (empty($reshook))
 			
                         $paiementcode = GETPOST('paiementcode','alpha');
                         $idcheque = null;
+                        
+                        //$label='(CustomerInvoicePayment)';
+                        $label='(CustomerAccountMovement)';
+                        if ($paiementcode == 'CHQ' || $paiementcode == 'CHT' || $paiementcode == 'VIR')
+                        {
+                            $paiement = new Paiement($db);
+                            $paiement->datepaye = $dateop;
+                            //$paiement->paiementid = dol_getIdFromCode($db, GETPOST('paiementcode'), 'c_paiement');
+                            $paiement->paiementid = $paiementcode;
+                            $paiement->amount = $object->amount;
+                            $paiement->total = $object->amount;
+                            $paiement->num_paiement = $paymentnum;
+                            
+                            $amounts = array();
+                            $amounts[$societe->id] = $societe->nom;
+                            $paiement->amounts = $amounts;
+                            
+                            $result = $paiement->addPaymentToBank($user, 'payment', $label, GETPOST('accountid'), GETPOST('chqemetteur'), GETPOST('chqbank'));
+                            if ($result < 0)
+                            {
+                                setEventMessages($paiement->error, $paiement->errors, 'errors');
+                                $error++;
+                            }
+                        }
+                        
                         /*
                          * <option value="CHQ">Cheque</option>
-                         * <option value="PRE">Domiciliación</option> // Cheque a Terceros
+                         * <option value="CHT">Cheque Terceros</option>
                          */
-                        if ($paiementcode == 'CHQ' || $paiementcode == 'PRE') {
+                        if ($paiementcode == 'CHQ' || $paiementcode == 'CHT') {
                             
                             $objectcheque = new cheque($db);
                             $objectcheque->num_paiement = $paymentnum;
@@ -275,6 +334,8 @@ if (empty($reshook))
 	if ($action == 'update')
 	{
 		$error=0;
+                
+                $object->fetch($id);
 
                 $object->entity=GETPOST('entity','int');
                 
@@ -305,11 +366,27 @@ if (empty($reshook))
                     $error++;
                     setEventMessages($langs->trans("ErrorFieldRequired",$langs->transnoentitiesnoconv("CustomerAccountFieldDateOperationShort")), null, 'errors');
                 }
+                
                 if (! isset($object->amount) || empty($object->amount))
                 {
                     $error++;
                     setEventMessages($langs->trans("ErrorFieldRequired",$langs->transnoentitiesnoconv("CustomerAccountFieldamount")), null, 'errors');
                 }
+                else if (!is_numeric($object->amount))
+                {
+                    $error++;
+                    setEventMessages($langs->trans("ErrorFieldMustBeNumber",$langs->transnoentitiesnoconv("CustomerAccountFieldamount")), null, 'errors');
+                }
+                else
+                {
+                    $object->amount = price2num($object->amount);
+                    if ($object->amount <= 0)
+                    {
+                        $error++;
+                        setEventMessages($langs->trans("ErrorFieldCantBeNegative",$langs->transnoentitiesnoconv("CustomerAccountFieldamount")), null, 'errors');
+                    }
+                }
+                
                 if (! isset($object->label) || empty($object->label))
                 {
                     $error++;
@@ -334,11 +411,35 @@ if (empty($reshook))
                         
                         $paiementcode = GETPOST('paiementcode','alpha');
                         
+                        //$label='(CustomerInvoicePayment)';
+                        $label='(CustomerAccountMovement)';
+                        if ($paiementcode == 'CHQ' || $paiementcode == 'CHT' || $paiementcode == 'VIR')
+                        {
+                            $paiement = new Paiement($db);
+                            $paiement->datepaye = $dateop;
+                            //$paiement->paiementid = dol_getIdFromCode($db, GETPOST('paiementcode'), 'c_paiement');
+                            $paiement->paiementid = $paiementcode;
+                            $paiement->amount = $object->amount;
+                            $paiement->total = $object->amount;
+                            $paiement->num_paiement = $paymentnum;
+                            
+                            $amounts = array();
+                            $amounts[$societe->id] = $societe->nom;
+                            $paiement->amounts = $amounts;
+                            
+                            $result = $paiement->addPaymentToBank($user, 'payment', $label, GETPOST('accountid'), GETPOST('chqemetteur'), GETPOST('chqbank'));
+                            if ($result < 0)
+                            {
+                                setEventMessages($paiement->error, $paiement->errors, 'errors');
+                                $error++;
+                            }
+                        }
+                        
                         /*
                          * <option value="CHQ">Cheque</option>
-                         * <option value="PRE">Domiciliación</option> // Cheque a Terceros
+                         * <option value="CHT">Cheque Terceros</option>
                          */
-                        if ($paiementcode == 'CHQ' || $paiementcode == 'PRE') {
+                        if ($paiementcode == 'CHQ' || $paiementcode == 'CHT') {
                             
                             $objectcheque->num_paiement = $paymentnum;
                             $objectcheque->chqemetteur = GETPOST('chqemetteur','alpha');
@@ -466,15 +567,6 @@ if (empty($reshook))
 	}
 }
 
-$societe = new Societe($db);
-//if ($socid > 0 && empty($object->id))
-//{
-    // Load data of third party
-    $res = $societe->fetch($socid);
-    $thirdpartylabel = $societe->nom;
-//}
-
-
 
 /***************************************************
 * VIEW
@@ -511,17 +603,23 @@ if ($conf->use_javascript_ajax)
                 {
                     var code = $("#selectpaiementcode option:selected").val();
 
-                    if (code == \'CHQ\' || code == \'VIR\')
+                    if (code == \'CHQ\' || code == \'CHT\' || code == \'VIR\')
                     {
-                        if (code == \'CHQ\')
+                        if (code == \'CHQ\' || code == \'CHT\')
                         {
                             $(\'.fieldrequireddyn\').addClass(\'fieldrequired\');
+                            
+                            if (code == \'CHQ\')
+                            {
+                                var emetteur = \''.$thirdpartylabel.'\'
+                                $(\'#fieldchqemetteur\').val(emetteur);
+                            }
+                            else
+                            {
+                                $(\'#fieldchqemetteur\').val(\'\');
+                            }
                         }
-                        if ($(\'#fieldchqemetteur\').val() == \'\')
-                        {
-                            var emetteur = \''.$thirdpartylabel.'\'
-                            $(\'#fieldchqemetteur\').val(emetteur);
-                        }
+                        
                     }
                     else
                     {
@@ -565,7 +663,7 @@ if ($action == 'create')
         // Date ope
         print '<tr><td class="fieldrequired">'.$langs->trans("CustomerAccountFieldDateOperationShort").'</td>';
         print '<td>';
-        print $form->select_date(GETPOST('dateo'),'dateo','','','','createForm',1,1,1);
+        print $form->select_date($object->dateo,'dateo','','','','createForm',1,1,1);
         
         // For Only View
         /*
@@ -576,10 +674,10 @@ if ($action == 'create')
         print '</tr>';
         
         // Monto
-        print '<tr><td class="fieldrequired">'.$langs->trans("CustomerAccountFieldamount").'</td><td><input class="flat" type="text" name="amount" value="'.GETPOST('amount').'"></td></tr>';
+        print '<tr><td class="fieldrequired">'.$langs->trans("CustomerAccountFieldamount").'</td><td><input class="flat" type="text" name="amount" value="'.((isset($object->amount) && !empty($object->amount)) ? price($object->amount) : '').'"></td></tr>';
         
         // Descripcion
-        print '<tr><td class="fieldrequired">'.$langs->trans("CustomerAccountFieldlabel").'</td><td><input class="flat" type="text" name="label" value="'.GETPOST('label').'"></td></tr>';
+        print '<tr><td class="fieldrequired">'.$langs->trans("CustomerAccountFieldlabel").'</td><td><input class="flat" type="text" name="label" value="'.$object->label.'"></td></tr>';
         
         // Payment mode
         print '<tr><td><span class="fieldrequired">'.$langs->trans('PaymentMode').'</span></td><td>';
@@ -588,6 +686,21 @@ if ($action == 'create')
         print "</td>\n";
         print '</tr>';
         
+        // Bank account
+        print '<tr>';
+        if (! empty($conf->banque->enabled))
+        {
+            print '<td><span class="fieldrequired">'.$langs->trans('AccountToCredit').'</span></td>';
+            print '<td>';
+            $form->select_comptes($accountid,'accountid',0,'',2);
+            print '</td>';
+        }
+        else
+        {
+            print '<td>&nbsp;</td>';
+        }
+        print "</tr>\n";
+        
         // Cheque number
         print '<tr><td>'.$langs->trans('Numero');
         print ' <em>('.$langs->trans("ChequeOrTransferNumber").')</em>';
@@ -595,7 +708,7 @@ if ($action == 'create')
         print '<td><input name="num_paiement" type="text" value="'.GETPOST('num_paiement').'"></td></tr>';
 
         // Check transmitter
-        print '<tr><td class="'.(GETPOST('paiementcode')=='CHQ'?'fieldrequired ':'').'fieldrequireddyn">'.$langs->trans('CheckTransmitter');
+        print '<tr><td class="'.((GETPOST('paiementcode')=='CHQ' || GETPOST('paiementcode')=='CHT') ? 'fieldrequired ' : '').'fieldrequireddyn">'.$langs->trans('CheckTransmitter');
         print ' <em>('.$langs->trans("ChequeMaker").')</em>';
         print '</td>';
         print '<td><input id="fieldchqemetteur" name="chqemetteur" size="30" type="text" value="'.GETPOST('chqemetteur').'"></td></tr>';
@@ -606,10 +719,16 @@ if ($action == 'create')
         print '</td>';
         print '<td><input name="chqbank" size="30" type="text" value="'.GETPOST('chqbank').'"></td></tr>';
         
+        $month=$_POST["datecheckmonth"];
+        $day=$_POST["datecheckday"];
+        $year=$_POST["datecheckyear"];
+        
+        $datecheckp = (GETPOST('paiementcode')=='CHQ' || GETPOST('paiementcode')=='CHT') ? dol_mktime(12,0,0,$month,$day,$year) : '';
+                            
         // Check date
-        print '<tr><td class="fieldrequired">'.$langs->trans("CustomerAccountFieldDateCheckShort").'</td>';
+        print '<tr><td class="'.((GETPOST('paiementcode')=='CHQ' || GETPOST('paiementcode')=='CHT') ? 'fieldrequired ' : '').'fieldrequireddyn">'.$langs->trans("CustomerAccountFieldDateCheckShort").'</td>';
         print '<td>';
-        print $form->select_date(GETPOST('datecheck'),'datecheck','','','','createForm',1,1,1);
+        print $form->select_date($datecheckp,'datecheck','','','','createForm',1,1,1);
         
         // For Only View
         /*
@@ -698,10 +817,27 @@ if (($id || $ref) && $action == 'edit')
         print '</td>';
         print '<td><input name="chqbank" size="30" type="text" value="'.$objectcheque->chqbank.'"></td></tr>';
         
+        $month=$_POST["datecheckmonth"];
+        $day=$_POST["datecheckday"];
+        $year=$_POST["datecheckyear"];
+        
+        $datecheckp = $objectcheque->datecheck;
+        if (GETPOST('paiementcode')!='')
+        {
+            if (GETPOST('paiementcode')=='CHQ' || GETPOST('paiementcode')=='CHT')
+            {
+                $datecheckp = dol_mktime(12,0,0,$month,$day,$year);
+            }
+            else 
+            {
+                $datecheckp = '';
+            }
+        }
+        
         // Check date
         print '<tr><td class="fieldrequired">'.$langs->trans("CustomerAccountFieldDateCheckShort").'</td>';
         print '<td>';
-        print $form->select_date($objectcheque->datecheck,'datecheck','','','','createForm',1,1,1);
+        print $form->select_date($datecheckp,'datecheck','','','','updateForm',1,1,1);
         
         // For Only View
         /*
