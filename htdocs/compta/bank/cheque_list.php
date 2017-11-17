@@ -38,6 +38,7 @@ $langs->load('companies');
 $langs->load('bills');
 $langs->load('banks');
 $langs->load('compta');
+$langs->load('customeraccount@customer_account');
 
 $action     = GETPOST('action','alpha');
 $confirm	= GETPOST('confirm');
@@ -109,7 +110,11 @@ $(document).ready(function () {
     var table = $(\'#tablacheques\').DataTable({
         \'columnDefs\': [{
             \'targets\': 0,
-            \'width\': "23%"
+            \'width\': "20%"
+        },
+        {
+            \'targets\': 1,
+            \'width\': "20%"
         },
         {
             \'targets\': 2,
@@ -128,12 +133,12 @@ $(document).ready(function () {
         {
             \'targets\': 5,
             \'orderable\': false,
-            \'width\': "15%"
+            \'width\': "20%"
         },
         {
             \'targets\': 6,
             \'orderable\': false,
-            \'width\': "15%"
+            \'width\': "20%"
         }],
         \'order\': [[0, \'asc\']],
         \'ordering\': true,
@@ -230,13 +235,13 @@ print '
     <table id="tablacheques" class="display select" cellspacing="0" width="100%">
             <thead>
                <tr>
-                  <th>'.$langs->trans('Numero').'<em>('.$langs->trans("ChequeOrTransferNumber").')</em></th>
-                  <th>'.$langs->trans("ChequeMaker").'</th>
-                  <th>'.$langs->trans('Bank').'<em>('.$langs->trans("ChequeBank").')</em></th>
-                  <th>Fecha</th>
-                  <th>Monto</th>
-                  <th>Asociado a pago de Cliente</th>
-                  <th>Utilizado para pago de Proveedor</th>
+                  <th>'.$langs->trans('Numero').'</th>
+                  <th>'.$langs->trans('CheckTransmitter').'</th>
+                  <th>'.$langs->trans('Bank').'</th>
+                  <th>'.$langs->trans('Date').'</th>
+                  <th>'.$langs->trans('CustomerAccountFieldamount').'</th>
+                  <th>'.$langs->trans('ChequeWithCustomerPaiement').'</th>
+                  <th>'.$langs->trans('ChequeWithSupplierPaiement').'</th>
                </tr>
             </thead>
             <tbody>'.$rowcheques.'</tbody>
