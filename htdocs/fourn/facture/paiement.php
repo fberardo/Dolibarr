@@ -196,7 +196,7 @@ if (empty($reshook))
             $error++;
         }
         
-        if ($code == 'CHQ' || code == 'PRE') // Cheque / Cheques a Terceros
+        if ($code == 'CHQ' || code == 'CHT') // Cheque / Cheques a Terceros
         {
             if (!isset($_POST["fieldfk_cheque"]) || empty($_POST["fieldfk_cheque"]))
             {
@@ -296,7 +296,7 @@ if (empty($reshook))
                         $error++;
                     }
                 }
-                else if (isset($code) && ($code == 'CHQ' || code == 'PRE')) // Cheque / Cheques a Terceros
+                else if (isset($code) && ($code == 'CHQ' || code == 'CHT')) // Cheque / Cheques a Terceros
                 {
                 
                     if (isset($_POST["fieldfk_cheque"]) && !empty($_POST["fieldfk_cheque"]))
@@ -591,7 +591,7 @@ $(document).ready(function () {
                                 {
                                     var code = $("#selectpaiementcode option:selected").val();
 
-                                    if (code == \'CHQ\' || code == \'PRE\')
+                                    if (code == \'CHQ\' || code == \'CHT\')
                                     {
                                         $(\'input[type="search"]\').prop("disabled", false);
                                         $(\'select[name="tablacheques_length"]\').prop("disabled", false);
@@ -719,7 +719,10 @@ $(document).ready(function () {
                 print '<tr><td>&nbsp;</td></tr>';
             }
             
-            print '<tr><td>'.$langs->trans('Numero').'</td>';
+            // Cheque/Transfer number
+            print '<tr><td>'.$langs->trans('Numero');
+            print '<em> ( '.$langs->trans("TransferNumber").' )</em>';
+            print '</td>';
             print '<td>';
             print '<input class="fieldenableddyn" name="num_paiement" type="text" value="'.(empty($_POST['num_paiement'])?'':$_POST['num_paiement']).'">';
             print '</td></tr>';
@@ -773,11 +776,11 @@ $(document).ready(function () {
                            <tr>
                               <th><input name="select_all" value="1" type="checkbox"></th>
                               <th>Hidden ID</th>
-                              <th>'.$langs->trans('Numero').'<em>('.$langs->trans("ChequeOrTransferNumber").')</em></th>
-                              <th>'.$langs->trans("ChequeMaker").'</th>
-                              <th>'.$langs->trans('Bank').'<em>('.$langs->trans("ChequeBank").')</em></th>
-                              <th>Fecha</th>
-                              <th>Monto</th>
+                              <th>'.$langs->trans('Numero').'<em> ( '.$langs->trans("ChequeNumber"). ' )</em></th>
+                              <th>'.$langs->trans('CheckTransmitter').'<em> ( '.$langs->trans("ChequeOnlyMaker"). ' )</em></th>
+                              <th>'.$langs->trans('Bank').'<em> ( '.$langs->trans("ChequeBank"). ' )</em></th>
+                              <th>'.$langs->trans('Date').'</th>
+                              <th>'.$langs->trans('CustomerAccountFieldamount').'</th>
                            </tr>
                         </thead>
                         <tbody>'.$rowcheques.'</tbody>
