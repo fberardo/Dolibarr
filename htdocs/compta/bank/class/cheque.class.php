@@ -77,7 +77,48 @@ class cheque extends CommonObject
 	{
 		$this->db = $db;
 	}
+        
+        public function insert_payment($paymentId, $paymentType)
+	{
+            dol_syslog(__METHOD__, LOG_DEBUG);
 
+            $error = 0;
+
+            // Insert request
+            $sql = 'INSERT INTO ' . MAIN_DB_PREFIX . 'cheque_payment' . ' (';
+            $sql.= 'idpayment,';
+            $sql.= 'idcheque,';
+            $sql.= 'type';
+
+            $sql .= ') VALUES (';
+
+            $sql .= $paymentId.',';
+            $sql .= ' '.$this->id.',';
+            $sql .= ' '."'".$paymentType."'";
+
+            $sql .= ')';
+
+            $this->db->begin();
+
+            $resql = $this->db->query($sql);
+            if (!$resql) {
+                $error ++;
+                $this->errors[] = 'Error ' . $this->db->lasterror();
+                dol_syslog(__METHOD__ . ' ' . implode(',', $this->errors), LOG_ERR);
+            }
+
+            // Commit or rollback
+            if ($error) {
+                $this->db->rollback();
+
+                return - 1 * $error;
+            } else {
+                $this->db->commit();
+
+                return 1;
+            }
+        }
+        
 	/**
 	 * Create object into database
 	 *

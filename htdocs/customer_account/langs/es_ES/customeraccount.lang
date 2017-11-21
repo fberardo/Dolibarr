@@ -38,4 +38,4 @@ ChequeWithCustomerPaiement=Asociado a pago de Cliente
 ChequeWithSupplierPaiement=Utilizado para pago de Proveedor
 ErrorFieldMustBeNumber=El campo %s debe ser numérico
 ErrorFieldCantBeNegative=El campo %s no puede ser negativo
-
+PaiementChequeDisponible=Disponible

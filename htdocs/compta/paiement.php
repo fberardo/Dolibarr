@@ -170,7 +170,7 @@ if (empty($reshook))
             $error++;
         }
         
-        if ($code == 'CHQ' || code == 'CHT') // Cheque / Cheques a Terceros
+        if ($code == 'CHQ' || $code == 'CHT') // Cheque / Cheques a Terceros
         {
             if (!isset($_POST["fieldfk_cheque"]) || empty($_POST["fieldfk_cheque"]))
             {
@@ -246,7 +246,7 @@ if (empty($reshook))
                 $amounts[$key] = -$newvalue;
             }
 
-                foreach ($multicurrency_amounts as $key => $value)	// How payment is dispatch
+            foreach ($multicurrency_amounts as $key => $value)	// How payment is dispatch
             {
                 $newvalue = price2num($value,'MT');
                 $multicurrency_amounts[$key] = -$newvalue;
@@ -300,10 +300,17 @@ if (empty($reshook))
                     $error++;
                 }
             }
-            else */if (isset($code) && ($code == 'CHQ' || code == 'CHT')) // Cheque / Cheques a Terceros
+            else */if (isset($code) && ($code == 'CHQ' || $code == 'CHT')) // Cheque / Cheques a Terceros
             {
                 if (isset($_POST["fieldfk_cheque"]) && !empty($_POST["fieldfk_cheque"]))
                 {
+                    $totaltopaid = 0;
+                    foreach ($amounts as $key => $value)	// How payment is dispatch
+                    {
+                        $amountvalue = price2num($value,'MT');
+                        $totaltopaid += $amountvalue;
+                    }
+                    
                     foreach ($_POST["fieldfk_cheque"] as $value)
                     {
                         $cheque = new cheque($db);
@@ -318,9 +325,56 @@ if (empty($reshook))
                                 setEventMessages($paiement->error, $paiement->errors, 'errors');
                                 $error++;
                             }*/
-
-                            $cheque->customer_used = $paiement_id;
-                            $cheque->update($user);
+                            
+                            $chequeavailable = ($cheque->amountcheck - $cheque->customer_used);
+                            if ($totaltopaid >= $chequeavailable)
+                            {
+                                $thispaiment = $chequeavailable;
+                                
+                                // pago total
+                                $cheque->customer_used = $cheque->amountcheck;
+                                
+                                $result1 = $cheque->update($user);
+                                if ($result1 < 0)
+                                {
+                                    setEventMessages($cheque->error, $cheque->errors, 'errors');
+                                    $error++;
+                                }
+                                else
+                                {
+                                    $result2 = $cheque->insert_payment($paiement_id, 'payment');
+                                    if ($result2 < 0)
+                                    {
+                                        setEventMessages($cheque->error, $cheque->errors, 'errors');
+                                        $error++;
+                                    }
+                                }
+                                
+                                $totaltopaid -= $thispaiment;
+                            }
+                            else
+                            {
+                                // pago parcial
+                                $cheque->customer_used = $cheque->customer_used + $totaltopaid;
+                                
+                                $result1 = $cheque->update($user);
+                                if ($result1 < 0)
+                                {
+                                    setEventMessages($cheque->error, $cheque->errors, 'errors');
+                                    $error++;
+                                }
+                                else
+                                {
+                                    $result2 = $cheque->insert_payment($paiement_id, 'payment');
+                                    if ($result2 < 0)
+                                    {
+                                        setEventMessages($cheque->error, $cheque->errors, 'errors');
+                                        $error++;
+                                    }
+                                }
+                                
+                                break; // cortar el bucle
+                            }
                         }
                         else
                         {
@@ -511,7 +565,7 @@ function updateDataTableSelectedInfo(table) {
         var data = table.row($row).data();
         
         // Get row Amount
-        var rowAmount = data[6];*/
+        var rowAmount = data[7];*/
         
         var rowAmount = value;
 
@@ -521,7 +575,7 @@ function updateDataTableSelectedInfo(table) {
     
     // Update footer
     $( table.column( 2 ).footer() ).html(
-        \'Seleccionado (\' + totalSelected + \') : $ \' + totalSelectedAmount
+        \'Sel. (\' + totalSelected + \') : $ \' + totalSelectedAmount
     );
     
 }
@@ -541,7 +595,7 @@ $(document).ready(function () {
     //rows_selected = [[]];
     rows_selected_0 = [];
     rows_selected_1 = [];
-    rows_selected = [rows_selected_0, rows_selected_1]
+    rows_selected = [rows_selected_0, rows_selected_1];
     var table = $(\'#tablacheques\').DataTable({
         \'columnDefs\': [{
         \'targets\': 0,
@@ -557,6 +611,18 @@ $(document).ready(function () {
             \'targets\': 1,
             \'visible\': false,
             \'searchable\': false
+        },
+        {
+            \'targets\': 2,
+            \'width\': "20%"
+        },
+        {
+            \'targets\': 6,
+            \'width\': "15%"
+        },
+        {
+            \'targets\': 7,
+            \'width\': "15%"
         }],
         \'order\': [[1, \'asc\']],
         \'ordering\': false,
@@ -613,13 +679,33 @@ $(document).ready(function () {
                     return intVal(a) + intVal(b);
                 }, 0 );
             
+            // Available over all pages
+            available = api
+                .column( 7 )
+                .data()
+                .reduce( function (a, b) {
+                    return intVal(a) + intVal(b);
+                }, 0 );
+            
+            // Available over this page
+            availableTotal = api
+                .column( 7, { page: \'current\'} )
+                .data()
+                .reduce( function (a, b) {
+                    return intVal(a) + intVal(b);
+                }, 0 );
+            
             // Update footer
             $( api.column( 5 ).footer() ).html(
                 \'Total:\'
             );
             $( api.column( 6 ).footer() ).html(
-                //\'$ \' + pageTotal + \' ( $\'+ total + \' total)\'
-                \'$ \' + pageTotal
+                pageTotal + \' ( \'+ total + \' total)\'
+                //pageTotal
+            );
+            $( api.column( 7 ).footer() ).html(
+                availableTotal + \' ( \'+ available + \' total)\'
+                //availableTotal
             );
         }
     });
@@ -635,7 +721,7 @@ $(document).ready(function () {
         var rowId = data[1];
         
         // Get row Amount
-        var rowAmount = data[6];
+        var rowAmount = data[7];
 
         // Determine whether row ID is in the list of selected row IDs
         //var index = $.inArray(rowId, rows_selected);
@@ -898,61 +984,7 @@ $(document).ready(function () {
                                 callForResult();
                         });
 
-                        //jQuery extension method:
-                        jQuery.fn.filterByText = function(textbox) {
-                            return this.each(function() {
-                                var select = this;
-                                var options = [];
-                                $(select).find("option").each(function() {
-                                    options.push({
-                                        value: $(this).val(),
-                                        text: $(this).text(),
-                                        datafilter: "" + $(this).data("filter") // $(this).attr("data-filter")
-                                    });
-                                });
-
-                                $(select).data("options", options);
-
-                                $(textbox).bind("change keyup", function() {
-                                    var options = $(select).empty().data("options");
-                                    var search = $.trim($(this).val());
-                                    var regex = new RegExp(search, "gi");
-
-                                    $.each(options, function(i) {
-                                        var option = options[i];
-                                        var hasAny = false;
-                                        if (search.length == 0) {
-                                            $(select).append(
-                                                $("<option>").text(option.text).val(option.value)
-                                            );
-                                            $(select).val(0);
-                                        } else {
-                                            if (option.value == 0) {
-                                                $(select).append(
-                                                    $("<option>").text(option.text).val(option.value)
-                                                );
-                                            } else {
-                                                if (option.datafilter.match(regex) !== null) {
-                                                    $(select).append(
-                                                        $("<option>").text(option.text).val(option.value)
-                                                    );
-                                                    if (!hasAny) {
-                                                        $(select).val(option.value);
-                                                    }
-                                                    hasAny = true;
-                                                }
-                                            }
-                                        }
-                                    });
-
-                                    $(select).trigger("change");
-                                });
-                            });
-                        };
-
-                        $(function() {
-                            $("#selectcheque").filterByText($("#filterByChequeNumber"));
-                        });';
+                        ';
         }
 
         print '	});'."\n";
@@ -1044,8 +1076,7 @@ $(document).ready(function () {
         $sql2.= " INNER JOIN ".MAIN_DB_PREFIX."cheque chq ON (mvmt.fk_cheque = chq.rowid)";
         $sql2.= " WHERE acc.fk_societe = ".$facture->socid;
         $sql2.= " AND mvmt.fk_cheque IS NOT NULL";
-        $sql2.= " AND chq.customer_used IS NULL";
-        $sql2.= " AND chq.supplier_used IS NULL";
+        $sql2.= " AND chq.customer_used < chq.amount_chq";
         
         $result2 = $db->query($sql2);
         if ($result2)
@@ -1067,6 +1098,10 @@ $(document).ready(function () {
                     $rowcheques .= '<td>'.$cheque->chqbank.'</td>';
                     $rowcheques .= '<td>'.dol_print_date($cheque->datecheck, "day").'</td>';
                     $rowcheques .= '<td>'.price($cheque->amountcheck).'</td>';
+                    
+                    $available_cheque = $cheque->amountcheck - $cheque->customer_used;
+                    $rowcheques .= '<td>'.price($available_cheque).'</td>';
+                    
                     $rowcheques .= '</tr>';
                     
                     $i++;
@@ -1086,6 +1121,7 @@ $(document).ready(function () {
                           <th>'.$langs->trans('Bank').'<em> ( '.$langs->trans("ChequeBank"). ' )</em></th>
                           <th>'.$langs->trans('Date').'</th>
                           <th>'.$langs->trans('CustomerAccountFieldamount').'</th>
+                          <th>'.$langs->trans('PaiementChequeDisponible').'</th>
                        </tr>
                     </thead>
                     <tbody>'.$rowcheques.'</tbody>
@@ -1095,6 +1131,7 @@ $(document).ready(function () {
                         <th></th>
                         <th></th>
                         <th align="right"></th>
+                        <th align="left"></th>
                         <th align="left"></th></tr></tfoot>
             </table>';
 

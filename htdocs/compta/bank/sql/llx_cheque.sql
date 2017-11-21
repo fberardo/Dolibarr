@@ -31,6 +31,17 @@ create table llx_cheque
   fk_user_author  			integer DEFAULT NULL,
   fk_user_modif   			integer DEFAULT NULL,
   active     	  			tinyint DEFAULT 1  NOT NULL,
-  customer_used 			tinyint DEFAULT 0 NOT NULL,
-  supplier_used 			tinyint DEFAULT 0 NOT NULL
+  customer_used 			double(24,8) NOT NULL default 0,
+  supplier_used 			double(24,8) NOT NULL default 0
 )ENGINE=innodb;
+
+create table llx_cheque_payment
+(
+  idpayment           			integer NOT NULL,
+  idcheque 				integer DEFAULT NULL,
+  type					varchar(16) NOT NULL
+  CONSTRAINT PK_cheque_payment PRIMARY KEY (idpayment, idcheque)
+);
+/*
+ * type = 'payment, 'payment_supplier'
+ */

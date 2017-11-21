@@ -195,26 +195,58 @@ if ($result2)
             $cheque = new cheque($db);
             $cheque->fetch($chequeid->rowid);
             
-            $customer = 'No';
-            if (isset($cheque->customer_used) && !empty($cheque->customer_used))
-            {
-                $customer = 'Sí';
-                $paymentstatic = new Paiement($db);
-                $paymentstatic->fetch($cheque->customer_used);
-                
-                $customer .= ' (' . $paymentstatic->getNomUrl(0) . ' )';
+            $customer = 'Pagos:';
+            $supplier = 'Pagos:';
+            $customer_used = false;
+            $supplier_used = false;
+            
+            $sql3 = "SELECT";
+            $sql3.= " idpayment, type";
+            $sql3.= " FROM ".MAIN_DB_PREFIX."cheque_payment chq_paym";
+            $sql3.= " WHERE idcheque = ".$cheque->id;
+            
+            $result3 = $db->query($sql3);
+            if ($result3) {
+                $numrows = $db->num_rows($result3);
+		if ($numrows) {
+                    while ($obj = $db->fetch_object($result3)) {
+                        if ($obj->type == 'payment') {
+                            
+                            $customer_used = true;
+                            
+                            $paymentstatic = new Paiement($db);
+                            $paymentstatic->fetch($obj->idpayment);
+                            
+                            $customer .= '<br/>' . $paymentstatic->getNomUrl(0);
+                            
+                        } else if ($obj->type == 'payment_supplier') {
+                            
+                            $supplier_used = true;
+                            
+                            $paiementfourn = new PaiementFourn($db);
+                            $paiementfourn->fetch($obj->idpayment);
+
+                            $supplier .= '<br/>' . $paiementfourn->getNomUrl(0);
+                        }
+                        
+                    }
+                }
             }
             
-            $supplier = 'No';
-            if (isset($cheque->supplier_used) && !empty($cheque->supplier_used))
-            {
-                $supplier = 'Sí';
-                $paiementfourn = new PaiementFourn($db);
-                $paiementfourn->fetch($cheque->supplier_used);
-                
-                $supplier .= ' (' . $paiementfourn->getNomUrl(0) . ' )';
+            if (!$customer_used) {
+                $customer .= ' No';
+            } else {
+                $available = $cheque->amountcheck - $cheque->customer_used;
+                $customer .= '<br/>' . $langs->trans('PaiementChequeDisponible') . ':&nbsp;<span style="font-weight:bold">' . price($available) . '</span>';
             }
             
+            if (!$supplier_used) {
+                $supplier .= ' No';
+            } else {
+                $available = $cheque->amountcheck - $cheque->supplier_used;
+                $supplier .= '<br/>' . $langs->trans('PaiementChequeDisponible') . ':&nbsp;<span style="font-weight:bold">' . price($available) . '</span>';
+            }
+
             $rowcheques .= '<tr>';
             $rowcheques .= '<td>'.$cheque->num_paiement.'</td>';
             $rowcheques .= '<td>'.$cheque->chqemetteur.'</td>';

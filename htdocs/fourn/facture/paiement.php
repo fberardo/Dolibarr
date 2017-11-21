@@ -196,7 +196,7 @@ if (empty($reshook))
             $error++;
         }
         
-        if ($code == 'CHQ' || code == 'CHT') // Cheque / Cheques a Terceros
+        if ($code == 'CHQ' || $code == 'CHT') // Cheque / Cheques a Terceros
         {
             if (!isset($_POST["fieldfk_cheque"]) || empty($_POST["fieldfk_cheque"]))
             {
@@ -269,7 +269,6 @@ if (empty($reshook))
             $paiement->paiementid   = dol_getIdFromCode($db,GETPOST('paiementcode'),'c_paiement');
             $paiement->note         = $_POST['comment'];
             
-            $code = GETPOST('paiementcode');
             if (isset($code) && $code == 'VIR') // Transferencia Bancaria
             {
                 $paiement->num_paiement = GETPOST('num_paiement');
@@ -287,7 +286,7 @@ if (empty($reshook))
 
             if (! $error)
             {
-                if (isset($code) && ($code == 'VIR')) // Transferencia Bancaria
+                /*if (isset($code) && ($code == 'VIR')) // Transferencia Bancaria
                 {
                     $result = $paiement->addPaymentToBank($user, 'payment_supplier', '(SupplierInvoicePayment)', GETPOST('accountid'), '', '');
                     if ($result < 0)
@@ -296,11 +295,19 @@ if (empty($reshook))
                         $error++;
                     }
                 }
-                else if (isset($code) && ($code == 'CHQ' || code == 'CHT')) // Cheque / Cheques a Terceros
+                else */if (isset($code) && ($code == 'CHQ' || $code == 'CHT')) // Cheque / Cheques a Terceros
                 {
                 
                     if (isset($_POST["fieldfk_cheque"]) && !empty($_POST["fieldfk_cheque"]))
                     {
+                        
+                        $totaltopaid = 0;
+                        foreach ($amounts as $key => $value)	// How payment is dispatch
+                        {
+                            $amountvalue = price2num($value,'MT');
+                            $totaltopaid += $amountvalue;
+                        }
+                        
                         foreach ($_POST["fieldfk_cheque"] as $value)
                         {
                             $cheque = new cheque($db);
@@ -309,7 +316,7 @@ if (empty($reshook))
                             if ($result >= 0)
                             {
 
-                                $result2 = $paiement->addPaymentToBank($user, 'payment_supplier', '(SupplierInvoicePayment)', GETPOST('accountid'), $cheque->chqemetteur, $cheque->chqbank);
+                                /*$result2 = $paiement->addPaymentToBank($user, 'payment_supplier', '(SupplierInvoicePayment)', GETPOST('accountid'), $cheque->chqemetteur, $cheque->chqbank);
                                 if ($result2 < 0)
                                 {
                                     setEventMessages($paiement->error, $paiement->errors, 'errors');
@@ -317,7 +324,57 @@ if (empty($reshook))
                                 }
 
                                 $cheque->supplier_used = $paiement_id;
-                                $cheque->update($user);
+                                $cheque->update($user);*/
+                                
+                                $chequeavailable = ($cheque->amountcheck - $cheque->supplier_used);
+                                if ($totaltopaid >= $chequeavailable)
+                                {
+                                    $thispaiment = $chequeavailable;
+
+                                    // pago total
+                                    $cheque->supplier_used = $cheque->amountcheck;
+
+                                    $result1 = $cheque->update($user);
+                                    if ($result1 < 0)
+                                    {
+                                        setEventMessages($cheque->error, $cheque->errors, 'errors');
+                                        $error++;
+                                    }
+                                    else
+                                    {
+                                        $result2 = $cheque->insert_payment($paiement_id, 'payment_supplier');
+                                        if ($result2 < 0)
+                                        {
+                                            setEventMessages($cheque->error, $cheque->errors, 'errors');
+                                            $error++;
+                                        }
+                                    }
+
+                                    $totaltopaid -= $thispaiment;
+                                }
+                                else
+                                {
+                                    // pago parcial
+                                    $cheque->supplier_used = $cheque->supplier_used + $totaltopaid;
+
+                                    $result1 = $cheque->update($user);
+                                    if ($result1 < 0)
+                                    {
+                                        setEventMessages($cheque->error, $cheque->errors, 'errors');
+                                        $error++;
+                                    }
+                                    else
+                                    {
+                                        $result2 = $cheque->insert_payment($paiement_id, 'payment_supplier');
+                                        if ($result2 < 0)
+                                        {
+                                            setEventMessages($cheque->error, $cheque->errors, 'errors');
+                                            $error++;
+                                        }
+                                    }
+
+                                    break; // cortar el bucle
+                                }
                             }
                             else
                             {
@@ -434,11 +491,61 @@ function updateDataTableSelectAllCtrl(table){
             chkbox_select_all.indeterminate = true;
         }
     }
+    
+    updateDataTableSelectedInfo(table);
 }
+
+function updateDataTableSelectedInfo(table) {
+    
+    var totalSelectedAmount = 0, totalSelected = rows_selected[1].length;
+    
+    //$.each($chkbox_checked, function( index, value ) {
+    $.each(rows_selected[1], function( index, value ) {
+        // Get row data
+        /*var $row = value.closest(\'tr\');
+        
+        //var data = table.row($row).data();*/
+        
+        /*var $chkbox = $(\'#check_\' + value, $table);
+        console.log($chkbox);
+        
+        var $row = $chkbox.closest(\'tr\');
+        console.log($row);
+        
+        var data = table.row($row).data();
+        
+        // Get row Amount
+        var rowAmount = data[7];*/
+        
+        var rowAmount = value;
+
+        // Sumarize
+        totalSelectedAmount += intVal(rowAmount);
+    });
+    
+    // Update footer
+    $( table.column( 2 ).footer() ).html(
+        \'Sel. (\' + totalSelected + \') : $ \' + totalSelectedAmount
+    );
+    
+}
+
+// Remove the formatting to get integer data for summation
+function intVal( i ) {
+    var valuee = typeof i === \'string\' ?
+        i.replace(/[\$.]/g, \'\').replace(/[\$,]/g, \'.\')*1 :
+            typeof i === \'number\' ? i : 0
+    
+    return valuee;
+};
 
 $(document).ready(function () {
     // Array holding selected row IDs
-    var rows_selected = [];
+    //rows_selected = [];
+    //rows_selected = [[]];
+    rows_selected_0 = [];
+    rows_selected_1 = [];
+    rows_selected = [rows_selected_0, rows_selected_1];
     var table = $(\'#tablacheques\').DataTable({
         \'columnDefs\': [{
         \'targets\': 0,
@@ -454,6 +561,18 @@ $(document).ready(function () {
             \'targets\': 1,
             \'visible\': false,
             \'searchable\': false
+        },
+        {
+            \'targets\': 2,
+            \'width\': "20%"
+        },
+        {
+            \'targets\': 6,
+            \'width\': "15%"
+        },
+        {
+            \'targets\': 7,
+            \'width\': "15%"
         }],
         \'order\': [[1, \'asc\']],
         \'ordering\': false,
@@ -462,7 +581,8 @@ $(document).ready(function () {
             var rowId = data[1];
 
             // If row ID is in the list of selected row IDs
-            if($.inArray(rowId, rows_selected) !== -1) {
+            //if($.inArray(rowId, rows_selected) !== -1) {
+            if($.inArray(rowId, rows_selected[0]) !== -1) {
                 $(row).find(\'input[type="checkbox"]\').prop(\'checked\', true);
                 $(row).addClass(\'selected\');
             }
@@ -489,7 +609,55 @@ $(document).ready(function () {
             \'infoEmpty\': \'No hay cheques para mostrar\',
             \'infoFiltered\': \' - mostrando de _MAX_ registros\'
         },
-        \'lengthMenu\': [[10, 25, 50, -1], [10, 25, 50, "All"]]
+        \'lengthMenu\': [[10, 25, 50, -1], [10, 25, 50, "All"]],
+        \'footerCallback\': function ( row, data, start, end, display ) {
+            var api = this.api(), data;
+            
+            // Total over all pages
+            total = api
+                .column( 6 )
+                .data()
+                .reduce( function (a, b) {
+                    return intVal(a) + intVal(b);
+                }, 0 );
+            
+            // Total over this page
+            pageTotal = api
+                .column( 6, { page: \'current\'} )
+                .data()
+                .reduce( function (a, b) {
+                    return intVal(a) + intVal(b);
+                }, 0 );
+            
+            // Available over all pages
+            available = api
+                .column( 7 )
+                .data()
+                .reduce( function (a, b) {
+                    return intVal(a) + intVal(b);
+                }, 0 );
+            
+            // Available over this page
+            availableTotal = api
+                .column( 7, { page: \'current\'} )
+                .data()
+                .reduce( function (a, b) {
+                    return intVal(a) + intVal(b);
+                }, 0 );
+            
+            // Update footer
+            $( api.column( 5 ).footer() ).html(
+                \'Total:\'
+            );
+            $( api.column( 6 ).footer() ).html(
+                pageTotal + \' ( \'+ total + \' total)\'
+                //pageTotal
+            );
+            $( api.column( 7 ).footer() ).html(
+                availableTotal + \' ( \'+ available + \' total)\'
+                //availableTotal
+            );
+        }
     });
 
     // Handle click on checkbox
@@ -501,17 +669,25 @@ $(document).ready(function () {
 
         // Get row ID
         var rowId = data[1];
+        
+        // Get row Amount
+        var rowAmount = data[7];
 
         // Determine whether row ID is in the list of selected row IDs
-        var index = $.inArray(rowId, rows_selected);
+        //var index = $.inArray(rowId, rows_selected);
+        var index = $.inArray(rowId, rows_selected[0]);
 
         // If checkbox is checked and row ID is not in list of selected row IDs
         if(this.checked && index === -1) {
-           rows_selected.push(rowId);
+            //rows_selected.push(rowId);
+            rows_selected[0].push(rowId);
+            rows_selected[1].push(rowAmount);
 
         // Otherwise, if checkbox is not checked and row ID is in list of selected row IDs
         } else if (!this.checked && index !== -1) {
-           rows_selected.splice(index, 1);
+            //rows_selected.splice(index, 1);
+            rows_selected[0].splice(index, 1);
+            rows_selected[1].splice(index, 1);
         }
 
         if(this.checked) {
@@ -555,7 +731,7 @@ $(document).ready(function () {
         var form = this;
 
         // Iterate over all selected checkboxes
-        $.each(rows_selected, function(index, rowId) {
+        $.each(rows_selected[0], function(index, rowId) {
             // Create a hidden element
             $(form).append(
                 $(\'<input>\')
@@ -567,6 +743,7 @@ $(document).ready(function () {
     });
 
     selectChequesInit();
+    updateDataTableSelectedInfo(table);
 
     function selectChequesInit() {
         var selectedCheques = $(\'input[name="hiddencheckboxes"]\');
@@ -616,63 +793,7 @@ $(document).ready(function () {
                                         $(\'.fieldenableddyn\').prop("disabled", true);
                                     }
                                 }';
-            print "\n".'
-                        
-                        //jQuery extension method:
-                        jQuery.fn.filterByText = function(textbox) {
-                            return this.each(function() {
-                                var select = this;
-                                var options = [];
-                                $(select).find("option").each(function() {
-                                    options.push({
-                                        value: $(this).val(),
-                                        text: $(this).text(),
-                                        datafilter: "" + $(this).data("filter") // $(this).attr("data-filter")
-                                    });
-                                });
-
-                                $(select).data("options", options);
-
-                                $(textbox).bind("change keyup", function() {
-                                    var options = $(select).empty().data("options");
-                                    var search = $.trim($(this).val());
-                                    var regex = new RegExp(search, "gi");
-
-                                    $.each(options, function(i) {
-                                        var option = options[i];
-                                        var hasAny = false;
-                                        if (search.length == 0) {
-                                            $(select).append(
-                                                $("<option>").text(option.text).val(option.value)
-                                            );
-                                            $(select).val(0);
-                                        } else {
-                                            if (option.value == 0) {
-                                                $(select).append(
-                                                    $("<option>").text(option.text).val(option.value)
-                                                );
-                                            } else {
-                                                if (option.datafilter.match(regex) !== null) {
-                                                    $(select).append(
-                                                        $("<option>").text(option.text).val(option.value)
-                                                    );
-                                                    if (!hasAny) {
-                                                        $(select).val(option.value);
-                                                    }
-                                                    hasAny = true;
-                                                }
-                                            }
-                                        }
-                                    });
-
-                                    $(select).trigger("change");
-                                });
-                            });
-                        };
-
-                        $(function() {
-                            $("#selectcheque").filterByText($("#filterByChequeNumber"));
-                        });';
+            print "\n";
             
             print '	});'."\n";
             print '	</script>'."\n";                    
@@ -739,8 +860,7 @@ $(document).ready(function () {
             $sql2 = "SELECT";
             $sql2.= " chq.rowid";
             $sql2.= " FROM ".MAIN_DB_PREFIX."cheque chq";
-            $sql2.= " WHERE chq.customer_used IS NOT NULL";
-            $sql2.= " AND chq.supplier_used IS NULL";
+            $sql2.= " WHERE chq.supplier_used < chq.amount_chq";
 
             $result2 = $db->query($sql2);
             if ($result2)
@@ -762,6 +882,10 @@ $(document).ready(function () {
                         $rowcheques .= '<td>'.$cheque->chqbank.'</td>';
                         $rowcheques .= '<td>'.dol_print_date($cheque->datecheck, "day").'</td>';
                         $rowcheques .= '<td>'.price($cheque->amountcheck).'</td>';
+                        
+                         $available_cheque = $cheque->amountcheck - $cheque->supplier_used;
+                        $rowcheques .= '<td>'.price($available_cheque).'</td>';
+                    
                         $rowcheques .= '</tr>';
 
                         $i++;
@@ -781,13 +905,21 @@ $(document).ready(function () {
                               <th>'.$langs->trans('Bank').'<em> ( '.$langs->trans("ChequeBank"). ' )</em></th>
                               <th>'.$langs->trans('Date').'</th>
                               <th>'.$langs->trans('CustomerAccountFieldamount').'</th>
+                              <th>'.$langs->trans('PaiementChequeDisponible').'</th>
                            </tr>
                         </thead>
                         <tbody>'.$rowcheques.'</tbody>
+                            <tfoot><tr><th align="left"></th>
+                            <th align="left"></th>
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                            <th align="right"></th>
+                            <th align="left"></th>
+                            <th align="left"></th></tr></tfoot>
                 </table>';
             
             dol_fiche_end();
-
             
             $parameters=array('facid'=>$facid, 'ref'=>$ref, 'objcanvas'=>$objcanvas);
             $reshook=$hookmanager->executeHooks('paymentsupplierinvoices',$parameters,$object,$action);    // Note that $action and $object may have been modified by some hooks
