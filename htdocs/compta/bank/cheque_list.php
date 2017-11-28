@@ -179,9 +179,20 @@ dol_fiche_head(null);
 
 // Cheques
 $rowcheques = '';
-$sql2 = "SELECT";
-$sql2.= " chq.rowid";
+$sql2 = "SELECT DISTINCT";
+$sql2.= " chq.rowid cheque_id, s.rowid societe_id";
 $sql2.= " FROM ".MAIN_DB_PREFIX."cheque chq";
+$sql2.= " LEFT OUTER JOIN ".MAIN_DB_PREFIX."customer_account_movement mvmt ON chq.rowid = mvmt.fk_cheque";
+$sql2.= " INNER JOIN ".MAIN_DB_PREFIX."customer_account a ON mvmt.fk_customer_account = a.rowid";
+$sql2.= " INNER JOIN ".MAIN_DB_PREFIX."societe s ON a.fk_societe = s.rowid";
+
+$sql2.= " UNION ALL";
+
+$sql2.= " SELECT DISTINCT chq.rowid cheque_id, s.rowid societe_id";
+$sql2.= " FROM llx_cheque chq";
+$sql2.= " LEFT OUTER JOIN llx_supplier_account_movement mvmt ON chq.rowid = mvmt.fk_cheque";
+$sql2.= " INNER JOIN llx_supplier_account a ON mvmt.fk_supplier_account = a.rowid";
+$sql2.= " INNER JOIN llx_societe s ON a.fk_societe = s.rowid";
 
 $result2 = $db->query($sql2);
 if ($result2)
@@ -191,9 +202,12 @@ if ($result2)
     {    
         $i=0;
         while ($i < $num) {
-            $chequeid = $db->fetch_object($result2);
+            $cheque_r = $db->fetch_object($result2);
             $cheque = new cheque($db);
-            $cheque->fetch($chequeid->rowid);
+            $cheque->fetch($cheque_r->cheque_id);
+            
+            $societe = new Societe($db);
+            $societe->fetch($cheque_r->societe_id);
             
             $customer = 'Pagos:';
             $supplier = 'Pagos:';
@@ -249,7 +263,7 @@ if ($result2)
 
             $rowcheques .= '<tr>';
             $rowcheques .= '<td>'.$cheque->num_paiement.'</td>';
-            $rowcheques .= '<td>'.$cheque->chqemetteur.'</td>';
+            $rowcheques .= '<td>'.$cheque->chqemetteur.'<br/>( '.$societe->getNomUrl(1).' )</td>';
             $rowcheques .= '<td>'.$cheque->chqbank.'</td>';
             $rowcheques .= '<td>'.dol_print_date($cheque->datecheck, "day").'</td>';
             $rowcheques .= '<td>'.price($cheque->amountcheck).'</td>';
@@ -268,7 +282,7 @@ print '
             <thead>
                <tr>
                   <th>'.$langs->trans('Numero').'</th>
-                  <th>'.$langs->trans('CheckTransmitter').'</th>
+                  <th>'.$langs->trans('CheckTransmitter').' (Cliente/Proveedor)</th>
                   <th>'.$langs->trans('Bank').'</th>
                   <th>'.$langs->trans('Date').'</th>
                   <th>'.$langs->trans('CustomerAccountFieldamount').'</th>

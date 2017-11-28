@@ -19,7 +19,7 @@
 -- Table of "accounts" for supplier expert module
 -- ============================================================================
 
-create table llx_customer_account_movement
+create table llx_supplier_account_movement
 (
   rowid           			integer AUTO_INCREMENT PRIMARY KEY,
   entity          			integer DEFAULT 1 NOT NULL,
@@ -28,7 +28,7 @@ create table llx_customer_account_movement
   dateo                                 date,
   amount                                double(24,8) NOT NULL default 0,
   label                                 varchar(255),
-  fk_customer_account                   integer NOT NULL,
+  fk_supplier_account                   integer NOT NULL,
   fk_user_author  			integer DEFAULT NULL,
   fk_user_modif   			integer DEFAULT NULL,
   active     	  			tinyint DEFAULT 1  NOT NULL,

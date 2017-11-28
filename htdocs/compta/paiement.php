@@ -409,12 +409,13 @@ if (empty($reshook))
                     $customerAccountMovement = new customeraccountmovement($db);
                     $customerAccountMovement->entity = 1;
                     $customerAccountMovement->fk_customer_account = $obj->rowid;
-                    $customerAccountMovement->amount = -$value;
+                    $customerAccountMovement->amount = -$value; // negativo, es plata que sale
                     $customerAccountMovement->label = 'Pago de Factura ID['.$key.']';
                     $customerAccountMovement->dateo = $datepaye;
                     $customerAccountMovement->active = 1;
                     $customerAccountMovement->paiementid = dol_getIdFromCode($db,GETPOST('paiementcode'),'c_paiement');
                     //$customerAccountMovement->fk_cheque = NULL;
+                    //$customerAccountMovement->fk_account_id = NULL;
                     
                     $result = $customerAccountMovement->create($user);
 
@@ -1302,7 +1303,8 @@ $(document).ready(function () {
                     if ($action != 'add_paiement')
                     {
                         if (!empty($conf->use_javascript_ajax))
-							print img_picto("Auto fill",'rightarrow', "class='AutoFillAmout' data-rowname='".$namef."' data-value='".($sign * $remaintopay)."'");
+                            print img_picto("Auto fill",'rightarrow', "class='AutoFillAmout' data-rowname='".$namef."' data-value='".($sign * $remaintopay)."'");
+                        
                         print '<input type=hidden class="remain" name="'.$nameRemain.'" value="'.($sign * $remaintopay).'">';
                         print '<input type="text" size="8" class="amount" name="'.$namef.'" value="'.dol_escape_htmltag(GETPOST($namef)).'">';
                     }
@@ -1382,62 +1384,62 @@ $(document).ready(function () {
                     print '<td align="center">&nbsp;</td>';
                     print "</tr>\n";
                 }
-            }
-            
-            $sql = "SELECT SUM(amount) FROM " . MAIN_DB_PREFIX . "customer_account_movement as m";
-            $sql .= " , " . MAIN_DB_PREFIX . "customer_account as c";
-            $sql .= " WHERE c.rowid = m.fk_customer_account";
-            $sql .= " AND c.fk_societe = ".$facture->socid;
+                
+                $sql = "SELECT SUM(amount) FROM " . MAIN_DB_PREFIX . "customer_account_movement as m";
+                $sql .= " , " . MAIN_DB_PREFIX . "customer_account as c";
+                $sql .= " WHERE c.rowid = m.fk_customer_account";
+                $sql .= " AND c.fk_societe = ".$facture->socid;
 
-            $available = 0;
-            $result = $db->query($sql);
-            if ($result) {
-                $row = $db->fetch_row($result);
-                $available = ($row[0] != null) ? $row[0] : 0;
+                $available = 0;
+                $result = $db->query($sql);
+                if ($result) {
+                    $row = $db->fetch_row($result);
+                    $available = ($row[0] != null) ? $row[0] : 0;
 
-                $db->free($result);
-            }
-            print '<input type="hidden" name="available" value="'.$available.'">';
-
-            // Disponible en la cuenta
-            print '<tr height="30px">';
-            print '<td colspan="3"></td>';
-            if (!empty($conf->multicurrency->enabled)) print '<td></td>';
-            if (!empty($conf->multicurrency->enabled)) print '<td></td>';
-            if (!empty($conf->multicurrency->enabled)) print '<td></td>';
-            print '<td colspan="4"></td>';
-            if (!empty($conf->multicurrency->enabled)) print '<td>&nbsp;</td>';
-            print '<td>&nbsp;</td>';
-            print "</tr>\n";
-
-            print '<tr class="liste_total">';
-            print '<td colspan="3">&nbsp;</td>';
-            if (!empty($conf->multicurrency->enabled)) print '<td></td>';
-            if (!empty($conf->multicurrency->enabled)) print '<td></td>';
-            if (!empty($conf->multicurrency->enabled)) print '<td></td>';
-            print '<td align="right">'.$langs->trans('CustomerAccountDisponible').'</td>';
-            print '<td align="right"><b>'.price($available).'</b></td>';
-
-            print '<td align="right">';
-            //if ($available >= $resta) {
-                if ($action != 'add_paiement') {
-                    if (!empty($conf->use_javascript_ajax)) {
-                        print img_picto("Auto fill All", 'rightarrow', "class='AutoFillAmoutAll'");
-                    }
+                    $db->free($result);
                 }
-            //}
-            print '</td>';
+                print '<input type="hidden" name="available" value="'.$available.'">';
 
-            //print '<td align="right" id="result_available"><b>( '.price($available).' )</b></td>';
-            // Esto lo hace la función callForResult()
-            print '<td align="right" id="result_available"></td>';
+                // Disponible en la cuenta
+                print '<tr height="30px">';
+                print '<td colspan="3"></td>';
+                if (!empty($conf->multicurrency->enabled)) print '<td></td>';
+                if (!empty($conf->multicurrency->enabled)) print '<td></td>';
+                if (!empty($conf->multicurrency->enabled)) print '<td></td>';
+                print '<td colspan="4"></td>';
+                if (!empty($conf->multicurrency->enabled)) print '<td>&nbsp;</td>';
+                print '<td>&nbsp;</td>';
+                print "</tr>\n";
 
-            if (!empty($conf->multicurrency->enabled)) print '<td>&nbsp;</td>';
-            print '<td>&nbsp;</td>';
-            print "</tr>\n";
+                print '<tr class="liste_total">';
+                print '<td colspan="3">&nbsp;</td>';
+                if (!empty($conf->multicurrency->enabled)) print '<td></td>';
+                if (!empty($conf->multicurrency->enabled)) print '<td></td>';
+                if (!empty($conf->multicurrency->enabled)) print '<td></td>';
+                print '<td align="right">'.$langs->trans('CustomerAccountDisponible').'</td>';
+                print '<td align="right"><b>'.price($available).'</b></td>';
 
-            print "</table>";
-            //print "</td></tr>\n";
+                print '<td align="right">';
+                //if ($available >= $resta) {
+                    if ($action != 'add_paiement') {
+                        if (!empty($conf->use_javascript_ajax)) {
+                            print img_picto("Auto fill All", 'rightarrow', "class='AutoFillAmoutAll'");
+                        }
+                    }
+                //}
+                print '</td>';
+
+                //print '<td align="right" id="result_available"><b>( '.price($available).' )</b></td>';
+                // Esto lo hace la función callForResult()
+                print '<td align="right" id="result_available"></td>';
+
+                if (!empty($conf->multicurrency->enabled)) print '<td>&nbsp;</td>';
+                print '<td>&nbsp;</td>';
+                print "</tr>\n";
+
+                print "</table>";
+                //print "</td></tr>\n";
+            }
             
             $db->free($resql);
         }
@@ -1445,7 +1447,6 @@ $(document).ready(function () {
 		{
             dol_print_error($db);
         }
-
 
         // Bouton Enregistrer
         if ($action != 'add_paiement')

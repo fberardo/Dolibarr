@@ -20,8 +20,8 @@
  */
 
 /**
- * \file    customer_account_movement/customeraccountmovement.class.php
- * \ingroup customer_account_movement
+ * \file    supplier_account/supplieraccount.class.php
+ * \ingroup supplier_account
  * \brief   This file is an example for a CRUD class file (Create/Read/Update/Delete)
  *          Put some comments here
  */
@@ -32,25 +32,25 @@ require_once DOL_DOCUMENT_ROOT . '/core/class/commonobject.class.php';
 //require_once DOL_DOCUMENT_ROOT . '/product/class/product.class.php';
 
 /**
- * Class customeraccountmovement
+ * Class supplieraccount
  *
  * Put here description of your class
  *
  * @see CommonObject
  */
-class customeraccountmovement extends CommonObject
+class supplieraccount extends CommonObject
 {
 	/**
 	 * @var string Id to identify managed objects
 	 */
-	public $element = 'customeraccountmovement';
+	public $element = 'supplieraccount';
 	/**
 	 * @var string Name of table without prefix where object is stored
 	 */
-	public $table_element = 'customer_account_movement';
+	public $table_element = 'supplier_account';
 
 	/**
-	 * @var customeraccountmovementLine[] Lines
+	 * @var supplieraccountLine[] Lines
 	 */
 	public $lines = array();
 
@@ -60,17 +60,11 @@ class customeraccountmovement extends CommonObject
 	public $entity;
 	public $datec = '';
 	public $tms = '';
-	public $dateo = '';
-	public $amount;
-        public $label;
-	public $fk_customer_account;
+	public $label;
+	public $fk_societe;
 	public $fk_user_author;
 	public $fk_user_modif;
 	public $active;
-        public $paiementid;
-        public $fk_cheque;
-        public $fk_account_id;
-        public $acc_line_id;
 
 	/**
 	 */
@@ -105,38 +99,25 @@ class customeraccountmovement extends CommonObject
 		if (isset($this->entity)) {
 			 $this->entity = trim($this->entity);
 		}
-		if (isset($this->amount)) {
-			 $this->amount = trim($this->amount);
-		}
-                if (isset($this->label)) {
+		if (isset($this->label)) {
 			 $this->label = trim($this->label);
 		}
-		if (isset($this->fk_customer_account)) {
-			 $this->fk_customer_account = trim($this->fk_customer_account);
+		if (isset($this->fk_societe)) {
+			 $this->fk_societe = trim($this->fk_societe);
 		}
-		if (isset($this->fk_user_author) && !empty($this->fk_user_author)) {
+		if (isset($this->fk_user_author)) {
 			 $this->fk_user_author = trim($this->fk_user_author);
 		}
-		if (isset($this->fk_user_modif) && !empty($this->fk_user_modif)) {
+		if (isset($this->fk_user_modif)) {
 			 $this->fk_user_modif = trim($this->fk_user_modif);
 		}
-		if (isset($this->active) && !empty($this->active)) {
+		if (isset($this->active)) {
 			 $this->active = trim($this->active);
 		}
-                if (isset($this->paiementid) && !empty($this->paiementid)) {
-			 $this->paiementid = trim($this->paiementid);
-		}
-                if (isset($this->fk_cheque) && !empty($this->fk_cheque)) {
-			 $this->fk_cheque = trim($this->fk_cheque);
-		}
-                if (isset($this->fk_account_id) && !empty($this->fk_account_id)) {
-			 $this->fk_account_id = trim($this->fk_account_id);
-		}
-                if (isset($this->acc_line_id) && !empty($this->acc_line_id)) {
-			 $this->acc_line_id = trim($this->acc_line_id);
-		}
-                
-                // Check parameters
+
+		
+
+		// Check parameters
 		// Put here code to add control on parameters values
 
 		// Insert request
@@ -144,35 +125,24 @@ class customeraccountmovement extends CommonObject
 		
 		$sql.= 'entity,';
 		$sql.= 'datec,';
-		$sql.= 'dateo,';
-		$sql.= 'amount,';
-                $sql.= 'label,';
-                $sql.= 'fk_paiement,';
-                $sql.= 'fk_cheque,';
-		$sql.= 'fk_customer_account,';
+		$sql.= 'label,';
+		$sql.= 'fk_societe,';
 		$sql.= 'fk_user_author,';
 		$sql.= 'fk_user_modif,';
-		$sql.= 'active,';
-                $sql.= 'fk_account_id,';
-                $sql.= 'acc_line_id';
+		$sql.= 'active';
 
 		
 		$sql .= ') VALUES (';
 		
 		$sql .= ' '.(! isset($this->entity)?'NULL':$this->entity).',';
 		$sql .= ' '."'".$this->db->idate(dol_now())."'".',';
-		$sql .= ' '.(! isset($this->dateo) || dol_strlen($this->dateo)==0?'NULL':"'".$this->db->idate($this->dateo)."'").',';
-		$sql .= ' '.(! isset($this->amount)?'NULL':"'".$this->amount."'").',';
-                $sql .= ' '.(! isset($this->label)?'NULL':"'".$this->label."'").',';
-                $sql .= ' '.(! isset($this->paiementid)?'NULL':$this->paiementid).',';
-                $sql .= ' '.(! isset($this->fk_cheque)?'NULL':$this->fk_cheque).',';
-                $sql .= ' '.(! isset($this->fk_customer_account)?'NULL':$this->fk_customer_account).',';
+		$sql .= ' '.(! isset($this->label)?'NULL':"'".$this->db->escape($this->label)."'").',';
+		$sql .= ' '.(! isset($this->fk_societe)?'NULL':$this->fk_societe).',';
 		$sql .= ' '.$user->id.',';
-		$sql .= ' '.((isset($this->fk_user_modif) && !empty($this->fk_user_modif))?$this->fk_user_modif:'NULL').',';
-                $sql .= ' '.(! isset($this->active)?'NULL':$this->active).',';
-                $sql .= ' '.(! isset($this->fk_account_id)?'NULL':$this->fk_account_id).',';
-                $sql .= ' '.(! isset($this->acc_line_id)?'NULL':$this->acc_line_id);
-                
+		$sql .= ' '.(! isset($this->fk_user_modif)?'NULL':$this->fk_user_modif).',';
+		$sql .= ' '.(! isset($this->active)?'NULL':$this->active);
+
+		
 		$sql .= ')';
 
 		$this->db->begin();
@@ -228,23 +198,17 @@ class customeraccountmovement extends CommonObject
 		$sql .= " t.entity,";
 		$sql .= " t.datec,";
 		$sql .= " t.tms,";
-		$sql .= " t.dateo,";
-		$sql .= " t.amount,";
-                $sql .= " t.label,";
-                $sql .= " t.fk_paiement,";
-                $sql .= " t.fk_cheque,";
-		$sql .= " t.fk_customer_account,";
+		$sql .= " t.label,";
+		$sql .= " t.fk_societe,";
 		$sql .= " t.fk_user_author,";
 		$sql .= " t.fk_user_modif,";
-		$sql .= " t.active,";
-                $sql .= " t.fk_account_id,";
-                $sql .= " t.acc_line_id";
+		$sql .= " t.active";
 
 		
 		$sql .= ' FROM ' . MAIN_DB_PREFIX . $this->table_element . ' as t';
 		$sql.= ' WHERE 1 = 1';
 		if (! empty($conf->multicompany->enabled)) {
-		    $sql .= " AND entity IN (" . getEntity("customeraccountmovement", 1) . ")";
+		    $sql .= " AND entity IN (" . getEntity("supplieraccount", 1) . ")";
 		}
 		if (null !== $ref) {
 			$sql .= ' AND t.ref = ' . '\'' . $ref . '\'';
@@ -263,17 +227,11 @@ class customeraccountmovement extends CommonObject
 				$this->entity = $obj->entity;
 				$this->datec = $this->db->jdate($obj->datec);
 				$this->tms = $this->db->jdate($obj->tms);
-				$this->dateo = $this->db->jdate($obj->dateo);
-				$this->amount = $obj->amount;
-                                $this->label = $obj->label;
-                                $this->paiementid = $obj->fk_paiement;
-                                $this->fk_cheque = $obj->fk_cheque;
-                                $this->fk_customer_account = $obj->fk_customer_account;
+				$this->label = $obj->label;
+				$this->fk_societe = $obj->fk_societe;
 				$this->fk_user_author = $obj->fk_user_author;
 				$this->fk_user_modif = $obj->fk_user_modif;
 				$this->active = $obj->active;
-                                $this->fk_account_id = $obj->fk_account_id;
-                                $this->acc_line_id = $obj->acc_line_id;
 
 				
 			}
@@ -324,17 +282,11 @@ class customeraccountmovement extends CommonObject
 		$sql .= " t.entity,";
 		$sql .= " t.datec,";
 		$sql .= " t.tms,";
-		$sql .= " t.dateo,";
-		$sql .= " t.amount,";
-                $sql .= " t.label,";
-                $sql .= " t.fk_paiement,";
-                $sql .= " t.fk_cheque,";
-		$sql .= " t.fk_customer_account,";
+		$sql .= " t.label,";
+		$sql .= " t.fk_societe,";
 		$sql .= " t.fk_user_author,";
 		$sql .= " t.fk_user_modif,";
-		$sql .= " t.active,";
-                $sql .= " t.fk_account_id,";
-                $sql .= " t.acc_line_id";
+		$sql .= " t.active";
 
 		
 		$sql .= ' FROM ' . MAIN_DB_PREFIX . $this->table_element. ' as t';
@@ -348,7 +300,7 @@ class customeraccountmovement extends CommonObject
 		}
 		$sql.= ' WHERE 1 = 1';
 		if (! empty($conf->multicompany->enabled)) {
-		    $sql .= " AND entity IN (" . getEntity("customeraccountmovement", 1) . ")";
+		    $sql .= " AND entity IN (" . getEntity("supplieraccount", 1) . ")";
 		}
 		if (count($sqlwhere) > 0) {
 			$sql .= ' AND ' . implode(' '.$filtermode.' ', $sqlwhere);
@@ -367,24 +319,20 @@ class customeraccountmovement extends CommonObject
 			$num = $this->db->num_rows($resql);
 
 			while ($obj = $this->db->fetch_object($resql)) {
-				$line = new customeraccountmovementLine();
+				$line = new supplieraccountLine();
 
 				$line->id = $obj->rowid;
 				
 				$line->entity = $obj->entity;
 				$line->datec = $this->db->jdate($obj->datec);
 				$line->tms = $this->db->jdate($obj->tms);
-				$line->dateo = $this->db->jdate($obj->dateo);
-				$line->amount = $obj->amount;
-                                $line->label = $obj->label;
-                                $line->paiementid = $obj->fk_paiement;
-                                $line->fk_cheque = $obj->fk_cheque;
-				$line->fk_customer_account = $obj->fk_customer_account;
+				$line->label = $obj->label;
+				$line->fk_societe = $obj->fk_societe;
 				$line->fk_user_author = $obj->fk_user_author;
 				$line->fk_user_modif = $obj->fk_user_modif;
 				$line->active = $obj->active;
-                                $line->fk_account_id = $obj->fk_account_id;
-                                $line->acc_line_id = $obj->acc_line_id;
+
+				
 
 				$this->lines[$line->id] = $line;
 			}
@@ -418,36 +366,22 @@ class customeraccountmovement extends CommonObject
 		if (isset($this->entity)) {
 			 $this->entity = trim($this->entity);
 		}
-		if (isset($this->amount)) {
-			 $this->amount = trim($this->amount);
-		}
-                if (isset($this->label)) {
+		if (isset($this->label)) {
 			 $this->label = trim($this->label);
 		}
-		if (isset($this->fk_customer_account)) {
-			 $this->fk_customer_account = trim($this->fk_customer_account);
+		if (isset($this->fk_societe)) {
+			 $this->fk_societe = trim($this->fk_societe);
 		}
-		if (isset($this->fk_user_author) && !empty($this->fk_user_author)) {
+		if (isset($this->fk_user_author)) {
 			 $this->fk_user_author = trim($this->fk_user_author);
 		}
-		if (isset($this->fk_user_modif) && !empty($this->fk_user_modif)) {
+		if (isset($this->fk_user_modif)) {
 			 $this->fk_user_modif = trim($this->fk_user_modif);
 		}
-		if (isset($this->active) && !empty($this->active)) {
+		if (isset($this->active)) {
 			 $this->active = trim($this->active);
 		}
-                if (isset($this->paiementid) && !empty($this->paiementid)) {
-			 $this->paiementid = trim($this->paiementid);
-		}
-                if (isset($this->fk_cheque) && !empty($this->fk_cheque)) {
-			 $this->fk_cheque = trim($this->fk_cheque);
-		}
-                if (isset($this->fk_account_id) && !empty($this->fk_account_id)) {
-			 $this->fk_account_id = trim($this->fk_account_id);
-		}
-                if (isset($this->acc_line_id) && !empty($this->acc_line_id)) {
-			 $this->acc_line_id = trim($this->acc_line_id);
-		}
+
 		
 
 		// Check parameters
@@ -457,30 +391,16 @@ class customeraccountmovement extends CommonObject
 		$sql = 'UPDATE ' . MAIN_DB_PREFIX . $this->table_element . ' SET';
 		
 		$sql .= ' entity = '.(isset($this->entity)?$this->entity:"null").',';
-                
-		//$sql .= ' datec = '.(!isset($this->datec) || dol_strlen($this->datec) != 0 ? "'".$this->db->idate($this->datec)."'" : 'null').',';
-                $sql .= ' datec = '.(! isset($this->datec) || dol_strlen($this->datec) == 0 ? 'NULL' : "'".$this->db->idate($this->datec)."'").',';
-		
+		$sql .= ' datec = '.(! isset($this->datec) || dol_strlen($this->datec) != 0 ? "'".$this->db->idate($this->datec)."'" : 'null').',';
 		$sql .= ' tms = '.(dol_strlen($this->tms) != 0 ? "'".$this->db->idate($this->tms)."'" : "'".$this->db->idate(dol_now())."'").',';
-		
-                //$sql .= ' dateo = '.(! isset($this->dateo) || dol_strlen($this->dateo) != 0 ? "'".$this->db->idate($this->dateo)."'" : 'null').',';
-                $sql .= ' dateo = '.(! isset($this->dateo) || dol_strlen($this->dateo) == 0 ? 'NULL' : "'".$this->db->idate($this->dateo)."'").',';
-                
-		$sql .= ' amount = '.(isset($this->amount)?"'".$this->amount."'":"null").',';
-                $sql .= ' label = '.(isset($this->label)?"'".$this->label."'":"null").',';
-                $sql .= ' fk_paiement = '.(isset($this->paiementid)?$this->paiementid:"null").',';
-                $sql .= ' fk_cheque = '.(isset($this->fk_cheque)?$this->fk_cheque:"null").',';
-                
-		//$sql .= ' fk_customer_account = '.(isset($this->fk_customer_account)?$this->fk_customer_account:"null").',';
-		//$sql .= ' fk_user_author = '.(isset($this->fk_user_author)?$this->fk_user_author:"null").',';
-		//$sql .= ' fk_user_modif = '.(isset($this->fk_user_modif)?$this->fk_user_modif:"null").',';
-                
-                $sql .= ' fk_user_modif = '.$user->id.',';
-		$sql .= ' active = '.(isset($this->active)?$this->active:"null").',';
-                $sql .= ' fk_account_id = '.(isset($this->fk_account_id)?$this->fk_account_id:"null").',';
-                $sql .= ' acc_line_id = '.(isset($this->acc_line_id)?$this->acc_line_id:"null");
+		$sql .= ' label = '.(isset($this->label)?"'".$this->db->escape($this->label)."'":"null").',';
+		$sql .= ' fk_societe = '.(isset($this->fk_societe)?$this->fk_societe:"null").',';
+		$sql .= ' fk_user_author = '.(isset($this->fk_user_author)?$this->fk_user_author:"null").',';
+		$sql .= ' fk_user_modif = '.(isset($this->fk_user_modif)?$this->fk_user_modif:"null").',';
+		$sql .= ' active = '.(isset($this->active)?$this->active:"null");
+
         
-		$sql .= ' WHERE rowid = ' . $this->id;
+		$sql .= ' WHERE rowid=' . $this->id;
 
 		$this->db->begin();
 
@@ -580,7 +500,7 @@ class customeraccountmovement extends CommonObject
 
 		global $user;
 		$error = 0;
-		$object = new customeraccountmovement($this->db);
+		$object = new supplieraccount($this->db);
 
 		$this->db->begin();
 
@@ -639,7 +559,7 @@ class customeraccountmovement extends CommonObject
         $label.= '<br>';
         $label.= '<b>' . $langs->trans('Ref') . ':</b> ' . $this->ref;
 
-        $url = DOL_URL_ROOT.'/customer_account_movement/'.$this->table_name.'_card.php?id='.$this->id;
+        $url = DOL_URL_ROOT.'/supplier_account/'.$this->table_name.'_card.php?id='.$this->id;
         
         $linkclose='';
         if (empty($notooltip))
@@ -741,25 +661,43 @@ class customeraccountmovement extends CommonObject
 		$this->entity = '';
 		$this->datec = '';
 		$this->tms = '';
-		$this->dateo = '';
-		$this->amount = '';
-                $this->label = '';
-		$this->fk_customer_account = '';
+		$this->label = '';
+		$this->fk_societe = '';
 		$this->fk_user_author = '';
 		$this->fk_user_modif = '';
 		$this->active = '';
-                $this->fk_account_id = '';
-                $this->acc_line_id = '';
 
 		
 	}
+    public function getSaldo($socid) {
+        $sql= " SELECT SUM(t.amount) as saldo";
+        $sql.= " FROM ".MAIN_DB_PREFIX."supplier_account_movement as t";
 
+        $sql.= " INNER JOIN ".MAIN_DB_PREFIX."supplier_account as a ON (t.fk_supplier_account = a.rowid)";
+        $sql.= " INNER JOIN ".MAIN_DB_PREFIX."societe as s ON (a.fk_societe = s.rowid)";
+
+        // TODO para pruebas :: Descomentar!
+        //$sql.= " WHERE s.rowid = ".$socid;
+
+        $this->db->begin();
+
+        $resql = $this->db->query($sql);
+        if (!$resql) {
+            $error ++;
+            $this->errors[] = 'Error ' . $this->db->lasterror();
+            dol_syslog(__METHOD__ . ' ' . implode(',', $this->errors), LOG_ERR);
+        } else {
+            $result = $this->db->fetch_object($resql);
+            return (!empty($result->saldo) ? $result->saldo : 0);
+        }
+    }
+   
 }
 
 /**
- * Class customeraccountmovementLine
+ * Class supplieraccountLine
  */
-class customeraccountmovementLine
+class supplieraccountLine
 {
 	/**
 	 * @var int ID
@@ -772,17 +710,11 @@ class customeraccountmovementLine
 	public $entity;
 	public $datec = '';
 	public $tms = '';
-	public $dateo = '';
-	public $amount;
-        public $label;
-	public $fk_customer_account;
+	public $label;
+	public $fk_societe;
 	public $fk_user_author;
 	public $fk_user_modif;
 	public $active;
-        public $paiementid;
-        public $fk_cheque;
-        public $fk_account_id;
-        public $acc_line_id;
 
 	/**
 	 * @var mixed Sample line property 2

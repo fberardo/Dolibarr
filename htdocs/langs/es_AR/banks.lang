@@ -94,6 +94,7 @@ NotReconciled=No reconciliado
 CustomerInvoicePayment=Cobro a cliente
 SupplierInvoicePayment=Pago a proveedor
 CustomerAccountMovement=Entrega del cliente
+SupplierAccountMovement=Entrega al proveedor
 SubscriptionPayment=Pago cuota
 WithdrawalPayment=Cobro de domiciliación
 SocialContributionPayment=Pago impuesto social/fiscal

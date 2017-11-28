@@ -331,9 +331,10 @@ class Paiement extends CommonObject
 	 *  - Si le paiement porte sur au moins une facture a "payee", on refuse
 	 *
 	 *  @param	int		$notrigger		No trigger
+         *  @param	boolean		$onlyAccontLines
 	 *  @return int     				<0 si ko, >0 si ok
 	 */
-	function delete($notrigger=0)
+	function delete($notrigger=0, $onlyAccountLines=false)
 	{
 		global $conf, $user, $langs;
 
@@ -342,50 +343,53 @@ class Paiement extends CommonObject
 		$bank_line_id = $this->bank_line;
 
 		$this->db->begin();
-
-		// Verifier si paiement porte pas sur une facture classee
-		// Si c'est le cas, on refuse la suppression
-		$billsarray=$this->getBillsArray('fk_statut > 1');
-		if (is_array($billsarray))
-		{
-			if (count($billsarray))
-			{
-				$this->error="ErrorDeletePaymentLinkedToAClosedInvoiceNotPossible";
-				$this->db->rollback();
-				return -1;
-			}
-		}
-		else
-		{
-			$this->db->rollback();
-			return -2;
-		}
+                
+                if (!$onlyAccountLines)
+                {
+                    // Verifier si paiement porte pas sur une facture classee
+                    // Si c'est le cas, on refuse la suppression
+                    $billsarray=$this->getBillsArray('fk_statut > 1');
+                    if (is_array($billsarray))
+                    {
+                            if (count($billsarray))
+                            {
+                                    $this->error="ErrorDeletePaymentLinkedToAClosedInvoiceNotPossible";
+                                    $this->db->rollback();
+                                    return -1;
+                            }
+                    }
+                    else
+                    {
+                            $this->db->rollback();
+                            return -2;
+                    }
+                }
 
 		// Delete bank urls. If payment is on a conciliated line, return error.
 		if ($bank_line_id > 0)
 		{
-			$accline = new AccountLine($this->db);
+                    $accline = new AccountLine($this->db);
 
-			$result=$accline->fetch($bank_line_id);
-			if ($result == 0) $accline->rowid=$bank_line_id;    // If not found, we set artificially rowid to allow delete of llx_bank_url
+                    $result=$accline->fetch($bank_line_id);
+                    if ($result == 0) $accline->rowid=$bank_line_id;    // If not found, we set artificially rowid to allow delete of llx_bank_url
 
-            // Delete bank account url lines linked to payment
-			$result=$accline->delete_urls($user);
-            if ($result < 0)
-            {
-                $this->error=$accline->error;
-				$this->db->rollback();
-				return -3;
-            }
+                    // Delete bank account url lines linked to payment
+                    $result=$accline->delete_urls($user);
+                    if ($result < 0)
+                    {
+                        $this->error=$accline->error;
+                        $this->db->rollback();
+                        return -3;
+                    }
 
-            // Delete bank account lines linked to payment
-			$result=$accline->delete($user);
-			if ($result < 0)
-			{
-				$this->error=$accline->error;
-				$this->db->rollback();
-				return -4;
-			}
+                    // Delete bank account lines linked to payment
+                    $result=$accline->delete($user);
+                    if ($result < 0)
+                    {
+                            $this->error=$accline->error;
+                            $this->db->rollback();
+                            return -4;
+                    }
 		}
 
 		if (! $notrigger)
@@ -399,33 +403,47 @@ class Paiement extends CommonObject
 			 }
 		    // End call triggers
 		}
-
-		// Delete payment (into paiement_facture and paiement)
-		$sql = 'DELETE FROM '.MAIN_DB_PREFIX.'paiement_facture';
-		$sql.= ' WHERE fk_paiement = '.$this->id;
-		dol_syslog($sql);
-		$result = $this->db->query($sql);
-		if ($result)
+                
+                if (!$onlyAccountLines)
 		{
-			$sql = 'DELETE FROM '.MAIN_DB_PREFIX.'paiement';
-			$sql.= ' WHERE rowid = '.$this->id;
-		    dol_syslog($sql);
-			$result = $this->db->query($sql);
-			if (! $result)
-			{
-				$this->error=$this->db->lasterror();
-				$this->db->rollback();
-				return -3;
-			}
+                    // Delete payment (into paiement_facture and paiement)
+                    $sql = 'DELETE FROM '.MAIN_DB_PREFIX.'paiement_facture';
+                    $sql.= ' WHERE fk_paiement = '.$this->id;
+                    dol_syslog($sql);
+                    $result = $this->db->query($sql);
+                    if ($result)
+                    {
+                            $sql = 'DELETE FROM '.MAIN_DB_PREFIX.'paiement';
+                            $sql.= ' WHERE rowid = '.$this->id;
+                            dol_syslog($sql);
+                            $result = $this->db->query($sql);
+                            if (! $result)
+                            {
+                                    $this->error=$this->db->lasterror();
+                                    $this->db->rollback();
+                                    return -3;
+                            }
 
-			$this->db->commit();
-			return 1;
+                            $this->db->commit();
+                            return 1;
+                    }
+                    else
+                    {
+                            $this->error=$this->db->error;
+                            $this->db->rollback();
+                            return -5;
+                    }
+                }
+                
+                if (! $error)
+		{
+                        $this->db->commit();
+			return $this->id;
 		}
 		else
 		{
-			$this->error=$this->db->error;
 			$this->db->rollback();
-			return -5;
+			return -1;
 		}
 	}
 
@@ -441,9 +459,10 @@ class Paiement extends CommonObject
      *      @param  string	$emetteur_nom       Name of transmitter
      *      @param  string	$emetteur_banque    Name of bank
      *      @param	int		$notrigger			No trigger
+     *      @param	int		acc_line_id     ID of the Account Line (table "bank") to be updated.
      *      @return int                 		<0 if KO, bank_line_id if OK
      */
-    function addPaymentToBank($user,$mode,$label,$accountid,$emetteur_nom,$emetteur_banque,$notrigger=0)
+    function addPaymentToBank($user,$mode,$label,$accountid,$emetteur_nom,$emetteur_banque,$notrigger=0,$acc_line_id=-1)
     {
         global $conf,$langs,$user;
 
@@ -478,38 +497,57 @@ class Paiement extends CommonObject
 			
             if ($mode == 'payment_supplier') $totalamount=-$totalamount;
             
-            // Insert payment into llx_bank
-            $bank_line_id = $acc->addline(
-                $this->datepaye,
-                $this->paiementid,  // Payment mode id or code ("CHQ or VIR for example")
-                $label,
-                $totalamount,		// Sign must be positive when we receive money (customer payment), negative when you give money (supplier invoice or credit note)
-                $this->num_paiement,
-                '',
-                $user,
-                $emetteur_nom,
-                $emetteur_banque
-            );
+            $isEdit = isset($acc_line_id) && !empty($acc_line_id) && $acc_line_id != -1;
+            
+            if ($isEdit)
+            {
+                // Update payment into llx_bank
+                $bank_line_id = $acc->updateline(
+                    $acc_line_id,
+                    $this->datepaye,
+                    $this->paiementid,  // Payment mode id or code ("CHQ or VIR for example")
+                    $label,
+                    $totalamount,		// Sign must be positive when we receive money (customer payment), negative when you give money (supplier invoice or credit note)
+                    $this->num_paiement,
+                    '',
+                    $user,
+                    $emetteur_nom,
+                    $emetteur_banque
+                );
+            }
+            else
+            {
+            
+                // Insert payment into llx_bank
+                $bank_line_id = $acc->addline(
+                    $this->datepaye,
+                    $this->paiementid,  // Payment mode id or code ("CHQ or VIR for example")
+                    $label,
+                    $totalamount,		// Sign must be positive when we receive money (customer payment), negative when you give money (supplier invoice or credit note)
+                    $this->num_paiement,
+                    '',
+                    $user,
+                    $emetteur_nom,
+                    $emetteur_banque
+                );
+            }
 
             // Mise a jour fk_bank dans llx_paiement
             // On connait ainsi le paiement qui a genere l'ecriture bancaire
             if ($bank_line_id > 0)
             {
-                if ($mode == 'payment_supplier')
+                /*$result=$this->update_fk_bank($bank_line_id);
+                if ($result <= 0)
                 {
-                    $result=$this->update_fk_bank($bank_line_id);
-                    if ($result <= 0)
-                    {
-                        $error++;
-                        dol_print_error($this->db);
-                    }
-                }
-
+                    $error++;
+                    dol_print_error($this->db);
+                }*/
+                
                 // Add link 'payment', 'payment_supplier' in bank_url between payment and bank transaction
-                if ( ! $error)
+                /*if ( ! $error)
                 {
                     $url='';
-                    //if ($mode == 'payment') $url=DOL_URL_ROOT.'/compta/paiement/card.php?id=';
+                    if ($mode == 'payment') $url=DOL_URL_ROOT.'/compta/paiement/card.php?id=';
                     if ($mode == 'payment_supplier') $url=DOL_URL_ROOT.'/fourn/paiement/card.php?id=';
                     if ($url)
                     {
@@ -520,7 +558,7 @@ class Paiement extends CommonObject
                             dol_print_error($this->db);
                         }
                     }
-                }
+                }*/
 
                 // Add link 'company' in bank_url between invoice and bank transaction (for each invoice concerned by payment)
                 if (! $error  && $label != '(WithdrawalPayment)')
@@ -536,7 +574,7 @@ class Paiement extends CommonObject
                             $fac->fetch($key);
                             $fac->fetch_thirdparty();
                             if (! in_array($fac->thirdparty->id,$linkaddedforthirdparty)) // Not yet done for this thirdparty*/
-                            if (! in_array($key,$linkaddedforthirdparty)) // Not yet done for this thirdparty*/
+                            if (! in_array($key,$linkaddedforthirdparty))
                             {
                                 $result=$acc->add_url_line(
                                     $bank_line_id,
@@ -554,18 +592,21 @@ class Paiement extends CommonObject
                         }
                         if ($mode == 'payment_supplier')
                         {
-                            require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.facture.class.php';
+                            /*require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.facture.class.php';
                             
                             $fac = new FactureFournisseur($this->db);
                             $fac->fetch($key);
                             $fac->fetch_thirdparty();
-                            if (! in_array($fac->thirdparty->id,$linkaddedforthirdparty)) // Not yet done for this thirdparty
+                            if (! in_array($fac->thirdparty->id,$linkaddedforthirdparty)) // Not yet done for this thirdparty*/
+                            if (! in_array($key,$linkaddedforthirdparty))
                             {
                                 $result=$acc->add_url_line(
                                     $bank_line_id,
-                                    $fac->thirdparty->id,
+                                    //$fac->thirdparty->id,
+                                    $key,
                                     DOL_URL_ROOT.'/fourn/card.php?socid=',
-                                    $fac->thirdparty->name,
+                                    //$fac->thirdparty->name,
+                                    $value,
                                     'company'
                                 );
                                 if ($result <= 0) dol_syslog(get_class($this).'::addPaymentToBank '.$this->db->lasterror());

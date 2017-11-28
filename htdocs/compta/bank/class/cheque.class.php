@@ -199,8 +199,8 @@ class cheque extends CommonObject
 		$sql .= ' '.$user->id.',';
 		$sql .= ' '.((isset($this->fk_user_modif) && !empty($this->fk_user_modif))?$this->fk_user_modif:'NULL').',';
                 $sql .= ' '.(! isset($this->active)?'NULL':$this->active).',';
-                $sql .= ' '.(! isset($this->customer_used)?'NULL':$this->customer_used).',';
-                $sql .= ' '.(! isset($this->supplier_used)?'NULL':$this->supplier_used);
+                $sql .= ' '.(! isset($this->customer_used)?'NULL':"'".$this->customer_used."'").',';
+                $sql .= ' '.(! isset($this->supplier_used)?'NULL':"'".$this->supplier_used."'");
                 
 		$sql .= ')';
 
@@ -465,15 +465,15 @@ class cheque extends CommonObject
                 //$sql .= ' date_chq = '.(! isset($this->datecheck) || dol_strlen($this->datecheck) != 0 ? "'".$this->db->idate($this->datecheck)."'" : 'null').',';
                 $sql .= ' date_chq = '.(! isset($this->datecheck) || dol_strlen($this->datecheck) == 0 ? 'NULL' : "'".$this->db->idate($this->datecheck)."'").',';
                 
-                $sql .= ' amount_chq = '.(isset($this->amountcheck)?$this->amountcheck:"null").',';
+                $sql .= ' amount_chq = '.(isset($this->amountcheck)?"'".$this->amountcheck."'":"null").',';
                 
 		//$sql .= ' fk_customer_account_movement = '.(isset($this->fk_customer_account_movement)?$this->fk_customer_account_movement:"null").',';
 		//$sql .= ' fk_user_author = '.(isset($this->fk_user_author)?$this->fk_user_author:"null").',';
 		//$sql .= ' fk_user_modif = '.(isset($this->fk_user_modif)?$this->fk_user_modif:"null").',';
                 $sql .= ' fk_user_modif = '.$user->id.',';
 		$sql .= ' active = '.(isset($this->active)?$this->active:"null").',';
-                $sql .= ' customer_used = '.(isset($this->customer_used)?$this->customer_used:"null").',';
-                $sql .= ' supplier_used = '.(isset($this->supplier_used)?$this->supplier_used:"null");
+                $sql .= ' customer_used = '.(isset($this->customer_used)?"'".$this->customer_used."'":"null").',';
+                $sql .= ' supplier_used = '.(isset($this->supplier_used)?"'".$this->supplier_used."'":"null");
                 
 		$sql .= ' WHERE rowid = ' . $this->id;
 

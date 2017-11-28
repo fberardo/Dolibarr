@@ -16,29 +16,28 @@
 --
 -- ===================================================================
 
-ALTER TABLE llx_customer_account_movement
-ADD INDEX idx_customer_account_movement_dateo(dateo);
+ALTER TABLE llx_supplier_account_movement
+ADD INDEX idx_supplier_account_movement_dateo(dateo);
 
-ALTER TABLE llx_customer_account_movement
-ADD INDEX idx_customer_account_movement_fk_customer_account(fk_customer_account);
+ALTER TABLE llx_supplier_account_movement
+ADD INDEX idx_supplier_account_movement_fk_supplier_account(fk_supplier_account);
 
-ALTER TABLE llx_customer_account_movement
-ADD CONSTRAINT fk_customer_account_movement_fk_customer_account
-FOREIGN KEY (fk_customer_account)
-REFERENCES llx_customer_account (rowid);
+ALTER TABLE llx_supplier_account_movement
+ADD CONSTRAINT fk_supplier_account_movement_fk_supplier_account
+FOREIGN KEY (fk_supplier_account)
+REFERENCES llx_supplier_account (rowid);
 
-ALTER TABLE llx_customer_account_movement
-ADD CONSTRAINT fk_customer_account_movement_fk_cheque
+ALTER TABLE llx_supplier_account_movement
+ADD CONSTRAINT fk_supplier_account_movement_fk_cheque
 FOREIGN KEY (fk_cheque)
 REFERENCES llx_cheque (rowid);
 
-ALTER TABLE llx_customer_account_movement
-ADD CONSTRAINT fk_customer_account_movement_fk_account_id
+ALTER TABLE llx_supplier_account_movement
+ADD CONSTRAINT fk_supplier_account_movement_fk_account_id
 FOREIGN KEY (fk_account_id)
 REFERENCES llx_bank_account (rowid);
 
-ALTER TABLE llx_customer_account_movement
-ADD CONSTRAINT fk_customer_account_movement_acc_line_id
+ALTER TABLE llx_supplier_account_movement
+ADD CONSTRAINT fk_supplier_account_movement_acc_line_id
 FOREIGN KEY (acc_line_id)
 REFERENCES llx_bank (rowid);
-

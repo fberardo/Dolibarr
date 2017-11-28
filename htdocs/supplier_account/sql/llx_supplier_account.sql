@@ -19,21 +19,15 @@
 -- Table of "accounts" for supplier expert module
 -- ============================================================================
 
-create table llx_customer_account_movement
+create table llx_supplier_account
 (
   rowid           			integer AUTO_INCREMENT PRIMARY KEY,
   entity          			integer DEFAULT 1 NOT NULL,
   datec           			datetime,
   tms             			timestamp,
-  dateo                                 date,
-  amount                                double(24,8) NOT NULL default 0,
-  label                                 varchar(255),
-  fk_customer_account                   integer NOT NULL,
+  label           			varchar(255) NOT NULL,
+  fk_societe                            integer DEFAULT 0,
   fk_user_author  			integer DEFAULT NULL,
   fk_user_modif   			integer DEFAULT NULL,
-  active     	  			tinyint DEFAULT 1  NOT NULL,
-  fk_paiement                           integer NOT NULL,
-  fk_cheque                             integer NULL,
-  fk_account_id                         integer NULL,
-  acc_line_id                           integer NULL
+  active     	  			tinyint DEFAULT 1  NOT NULL
 )ENGINE=innodb;

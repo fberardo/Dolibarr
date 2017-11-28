@@ -494,6 +494,127 @@ class Account extends CommonObject
             return -2;
         }
     }
+    
+    /**
+     *  Update an existing entry from table ".MAIN_DB_PREFIX."bank
+     *
+     *  @param	int             $line_id                ID of the line to be updated
+     *  @param	int	        $date			Date operation
+     *  @param	string		$oper			1,2,3,4... (deprecated) or TYP,VIR,PRE,LIQ,VAD,CB,CHQ...
+     *  @param	string		$label			Descripton
+     *  @param	float		$amount			Amount
+     *  @param	string		$num_chq		Numero cheque ou virement
+     *  @param	int  		$categorie		Category id (optionnal)
+     *  @param	User		$user			User that create
+     *  @param	string		$emetteur		Name of cheque writer
+     *  @param	string		$banque			Bank of cheque writer
+     *  @return	int							Rowid of added entry, <0 if KO
+     */
+    function updateline($line_id, $date, $oper, $label, $amount, $num_chq, $categorie, User $user, $emetteur='',$banque='')
+    {
+        
+        // Deprecatîon warning
+        if (is_numeric($oper)) {
+                dol_syslog(__METHOD__ . ": using numeric operations is deprecated", LOG_WARNING);
+        }
+
+        // Clean parameters
+        $emetteur=trim($emetteur);
+        $banque=trim($banque);
+
+        $now=dol_now();
+
+        if (is_numeric($oper))    // Clean oper to have a code instead of a rowid
+        {
+            $sql ="SELECT code FROM ".MAIN_DB_PREFIX."c_paiement";
+            $sql.=" WHERE id=".$oper;
+            $resql=$this->db->query($sql);
+            if ($resql)
+            {
+                $obj=$this->db->fetch_object($resql);
+                $oper=$obj->code;
+            }
+            else
+            {
+                dol_print_error($this->db,'Failed to get payment type code');
+                return -1;
+            }
+        }
+
+        // Check parameters
+        if (! $oper)
+        {
+            $this->error="oper not defined";
+            return -1;
+        }
+        if (! $this->rowid)
+        {
+            $this->error="this->rowid not defined";
+            return -2;
+        }
+        if ($this->courant == Account::TYPE_CASH && $oper != 'LIQ')
+        {
+            $this->error="ErrorCashAccountAcceptsOnlyCashMoney";
+            return -3;
+        }
+
+        $this->db->begin();
+
+        $datev = $date;
+
+        $accline = new AccountLine($this->db);
+        
+        $result = $accline->fetch($line_id);
+        
+        if ($result > 0)
+        {
+            $accline->datec = $now;
+            $accline->dateo = $date;
+            $accline->datev = $datev;
+            $accline->label = $label;
+            $accline->amount = $amount;
+            $accline->fk_user_author = $user->id;
+            $accline->fk_account = $this->rowid;
+            $accline->fk_type = $oper;
+
+            if ($num_chq) {
+                    $accline->num_chq = $num_chq;
+            }
+
+            if ($emetteur) {
+                    $accline->emetteur = $emetteur;
+            }
+
+            if ($banque) {
+                    $accline->bank_chq = $banque;
+            }
+
+            if ($accline->update() > 0) {
+
+                if ($categorie>0) {
+                    $sql = "INSERT INTO ".MAIN_DB_PREFIX."bank_class (";
+                    $sql .= "lineid, fk_categ";
+                    $sql .= ") VALUES (";
+                    $sql .= " ".$accline->id.", ".$categorie;
+                    $sql .= ")";
+
+                    $result = $this->db->query($sql);
+                    if (!$result) {
+                        $this->error = $this->db->lasterror();
+                        $this->db->rollback();
+                        return -3;
+                    }
+                }
+
+                $this->db->commit();
+                return $accline->id;
+            } else {
+                $this->error = $this->db->lasterror();
+                $this->db->rollback();
+                return -2;
+            }
+        }
+    }
 
     /**
      *  Create bank account into database
@@ -1801,18 +1922,25 @@ class AccountLine extends CommonObject
     /**
      *		Update bank account record in database
      *
-     *		@param	User	$user			Object user making update
      *		@param 	int		$notrigger		0=Disable all triggers
      *		@return	int						<0 if KO, >0 if OK
      */
-    function update(User $user, $notrigger = 0)
+    function update($notrigger = 0)
     {
         $this->db->begin();
 
         $sql = "UPDATE ".MAIN_DB_PREFIX."bank SET";
+        
         $sql.= " amount = ".price2num($this->amount).",";
-        $sql.= " datev='".$this->db->idate($this->datev)."',";
-        $sql.= " dateo='".$this->db->idate($this->dateo)."'";
+        $sql.= " datev = '".$this->db->idate($this->datev)."',";
+        $sql.= " dateo = '".$this->db->idate($this->dateo)."',";
+        $sql.= " label = '".$this->db->escape($this->label)."',";
+        $sql.= " num_chq = ".($this->num_chq ? "'".$this->num_chq."'" : "null").",";
+        $sql.= " fk_account = '".$this->fk_account."',";
+        $sql.= " fk_type = '".$this->db->escape($this->fk_type)."',";
+        $sql.= " emetteur = ".($this->emetteur ? "'".$this->db->escape($this->emetteur)."'" : "null").",";
+        $sql.= " banque = ".($this->bank_chq ? "'".$this->db->escape($this->bank_chq)."'" : "null");
+        
         $sql.= " WHERE rowid = ".$this->rowid;
 
         dol_syslog(get_class($this)."::update", LOG_DEBUG);

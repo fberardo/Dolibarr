@@ -31,7 +31,7 @@ include_once DOL_DOCUMENT_ROOT .'/core/modules/DolibarrModules.class.php';
 /**
  *  Description and activation class for module MyModule
  */
-class modCustomerAccount extends DolibarrModules
+class modSupplierAccount extends DolibarrModules
 {
 	/**
 	 * Constructor. Define names, constants, directories, boxes, permissions
@@ -46,9 +46,9 @@ class modCustomerAccount extends DolibarrModules
 
 		// Id for module (must be unique).
 		// Use here a free id (See in Home -> System information -> Dolibarr for list of used modules id).
-		$this->numero = 68000;		// TODO Go on page http://wiki.dolibarr.org/index.php/List_of_modules_id to reserve id number for your module
+		$this->numero = 69000;		// TODO Go on page http://wiki.dolibarr.org/index.php/List_of_modules_id to reserve id number for your module
 		// Key text used to identify module (for permissions, menus, etc...)
-		$this->rights_class = 'customeraccount';
+		$this->rights_class = 'supplieraccount';
 
 		// Family can be 'crm','financial','hr','projects','products','ecm','technic','interface','other'
 		// It is used to group modules by family in module setup page
@@ -61,7 +61,7 @@ class modCustomerAccount extends DolibarrModules
 		// Module label (no space allowed), used if translation string 'ModuleXXXName' not found (where XXX is value of numeric property 'numero' of module)
 		$this->name = preg_replace('/^mod/i','',get_class($this));
 		// Module description, used if translation string 'ModuleXXXDesc' not found (where XXX is value of numeric property 'numero' of module)
-		$this->description = "Account for Customers";
+		$this->description = "Account for Suppliers";
 		$this->descriptionlong = "A very long description. Can be a full HTML content";
 		$this->editor_name = 'Editor name';
 		$this->editor_url = 'https://www.dolibarr.org';
@@ -111,7 +111,7 @@ class modCustomerAccount extends DolibarrModules
 		$this->phpmin = array(5,0);					// Minimum version of PHP required by module
 		$this->need_dolibarr_version = array(3,0);	// Minimum version of Dolibarr required by module
 		//$this->langfiles = array("mylangfile@mymodule");
-		$this->langfiles = array("customeraccount@customer_account");
+		$this->langfiles = array("supplieraccount@supplier_account");
 
 		// Constants
 		// List of particular constants to add when module is enabled (key, 'chaine', value, desc, visible, 'current' or 'allentities', deleteonunactive)
@@ -145,7 +145,7 @@ class modCustomerAccount extends DolibarrModules
 		// 'thirdparty'       to add a tab in third party view
 		// 'user'             to add a tab in user view
 		//$this->tabs = array();
-                $this->tabs = array('thirdparty:+customeraccountmovement:CustomerAccountTabName:customeraccount@customer_account:$object->client!=0:/customer_account/customeraccountmovement_list.php?socid=__ID__');
+                $this->tabs = array('thirdparty:+supplieraccountmovement:SupplierAccountTabName:supplieraccount@supplier_account:$object->client==0:/supplier_account/supplieraccountmovement_list.php?socid=__ID__');
                 // popula la tabla llx_const
 
 		if (! isset($conf->mymodule) || ! isset($conf->mymodule->enabled))
@@ -201,23 +201,23 @@ class modCustomerAccount extends DolibarrModules
 		// $r++;
                 
                 $this->rights[$r][0] = $this->numero + $r;
-		$this->rights[$r][1] = 'Permision to edit customer account movements';
+		$this->rights[$r][1] = 'Permision to edit supplier account movements';
 		$this->rights[$r][3] = 0;
-		$this->rights[$r][4] = 'customeraccountmovement';
+		$this->rights[$r][4] = 'supplieraccountmovement';
 		$this->rights[$r][5] = 'read';
 		$r++;
                 
                 $this->rights[$r][0] = $this->numero + $r;
-		$this->rights[$r][1] = 'Permision to write customer account movements';
+		$this->rights[$r][1] = 'Permision to write supplier account movements';
 		$this->rights[$r][3] = 0;
-		$this->rights[$r][4] = 'customeraccountmovement';
+		$this->rights[$r][4] = 'supplieraccountmovement';
 		$this->rights[$r][5] = 'write';
                 $r++;
                 
                 $this->rights[$r][0] = $this->numero + $r;
-		$this->rights[$r][1] = 'Permision to delete customer account movements';
+		$this->rights[$r][1] = 'Permision to delete supplier account movements';
 		$this->rights[$r][3] = 0;
-		$this->rights[$r][4] = 'customeraccountmovement';
+		$this->rights[$r][4] = 'supplieraccountmovement';
 		$this->rights[$r][5] = 'delete';
                 
 		// Main menu entries
@@ -290,7 +290,7 @@ class modCustomerAccount extends DolibarrModules
 	{
 		$sql = array();
 
-		$this->_load_tables('/customer_account/sql/');
+		$this->_load_tables('/supplier_account/sql/');
 
 		return $this->_init($sql, $options);
 	}
