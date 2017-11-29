@@ -80,6 +80,9 @@ $societe = new Societe($db);
     $thirdpartylabel = $societe->nom;
 //}
 
+$permtowrite = $user->rights->customeraccount->customeraccountmovement->write;
+$permtodelete = $user->rights->customeraccount->customeraccountmovement->delete;
+
 if (empty($action) && empty($id) && empty($ref)) $action='view';
 
 // Protection if external user
@@ -948,12 +951,18 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
         $customerAccountMovement->next_prev_filter=$morefilters;
         $customerAccountMovement->ref=$id;
         
+        $enableEdit = $permtowrite;
+        $enableDelete = $permtodelete;
+        
         // Descripcion
         $label = $object->label;
         $objectlabel = $object->label;
         //Pago de Factura ID['.$key.']
         if (substr($label,0,19) == 'Pago de Factura ID[')
         {
+            $enableEdit = false;
+            $enableDelete = false;
+            
             $cursorfacid = substr($label,19, dol_strlen($label)-19-1);
             $facture = new Facture($db);
             $result = $facture->fetch($cursorfacid);
@@ -1027,12 +1036,12 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
                 '&amp;fk_customer_account='.GETPOST('fk_customer_account').
                 '&amp;active='.GETPOST('active');
                 
-                if ($user->rights->customeraccount->customeraccountmovement->write)
+                if ($enableEdit)
 		{
 			print '<div class="inline-block divButAction"><a class="butAction" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&socid='.$socid.$hiddenobjvaluesedit.'&amp;action=edit">'.$langs->trans("Modify").'</a></div>'."\n";
 		}
 
-		if ($user->rights->customeraccount->customeraccountmovement->delete)
+		if ($enableDelete)
 		{
 			print '<div class="inline-block divButAction"><a class="butActionDelete" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&socid='.$socid.$hiddenobjvaluesedit.'&amp;action=delete">'.$langs->trans('Delete').'</a></div>'."\n";
 		}

@@ -45,7 +45,7 @@ if (! $res) die("Include of main fails");
 // Change this following line to use the correct relative path from htdocs
 include_once(DOL_DOCUMENT_ROOT.'/core/class/html.formcompany.class.php');
 require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
-require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
+require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.facture.class.php';
 dol_include_once('/supplier_account/class/supplieraccountmovement.class.php');
 require_once DOL_DOCUMENT_ROOT.'/compta/bank/class/cheque.class.php';
 require_once DOL_DOCUMENT_ROOT.'/compta/bank/class/account.class.php';
@@ -79,6 +79,9 @@ $societe = new Societe($db);
     $res = $societe->fetch($socid);
     $thirdpartylabel = $societe->nom;
 //}
+
+$permtowrite = $user->rights->supplieraccount->supplieraccountmovement->write;
+$permtodelete = $user->rights->supplieraccount->supplieraccountmovement->delete;
 
 if (empty($action) && empty($id) && empty($ref)) $action='view';
 
@@ -956,14 +959,20 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
         $supplierAccountMovement->next_prev_filter=$morefilters;
         $supplierAccountMovement->ref=$id;
         
+        $enableEdit = $permtowrite;
+        $enableDelete = $permtodelete;
+        
         // Descripcion
         $label = $object->label;
         $objectlabel = $object->label;
         //Pago de Factura ID['.$key.']
         if (substr($label,0,19) == 'Pago de Factura ID[')
         {
+            $enableEdit = false;
+            $enableDelete = false;
+            
             $cursorfacid = substr($label,19, dol_strlen($label)-19-1);
-            $facture = new Facture($db);
+            $facture = new FactureFournisseur($db);
             $result = $facture->fetch($cursorfacid);
 
             if ($result >= 0)
@@ -1039,12 +1048,12 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
                 '&amp;fk_supplier_account='.GETPOST('fk_supplier_account').
                 '&amp;active='.GETPOST('active');
                 
-                if ($user->rights->supplieraccount->supplieraccountmovement->write)
+                if ($enableEdit)
 		{
 			print '<div class="inline-block divButAction"><a class="butAction" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&socid='.$socid.$hiddenobjvaluesedit.'&amp;action=edit">'.$langs->trans("Modify").'</a></div>'."\n";
 		}
 
-		if ($user->rights->supplieraccount->supplieraccountmovement->delete)
+		if ($enableDelete)
 		{
 			print '<div class="inline-block divButAction"><a class="butActionDelete" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&socid='.$socid.$hiddenobjvaluesedit.'&amp;action=delete">'.$langs->trans('Delete').'</a></div>'."\n";
 		}

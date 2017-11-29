@@ -229,7 +229,9 @@ if ($socid > 0)
     dol_fiche_head($head, 'supplieraccountmovement', $langs->trans("ThirdParty"),0,'company');
 
     $linkback = '<a href="'.DOL_URL_ROOT.'/societe/list.php">'.$langs->trans("BackToList").'</a>';
-	
+    
+    $object->next_prev_filter = 'client = 0';
+    
     dol_banner_tab($object, 'socid', $linkback, ($user->societe_id?0:1), 'rowid', 'nom');
     
     
@@ -553,18 +555,33 @@ while ($i < min($num, $limit))
     $obj = $db->fetch_object($resql);
     if ($obj)
     {
+        $enableEdit = $permtowrite;
+        $enableDelete = $permtodelete;
+        
         $var = !$var;
         
         // Show here line of result
         print '<tr '.$bc[$var].'>';
         // LIST_OF_TD_FIELDS_LIST
         foreach ($arrayfields as $key => $value) {
+            
+            $key2 = str_replace('t.', '', $key);
+            $key2 = str_replace('c.', '', $key2);
+                
+            if ($key2 == 'label')
+            {
+                //Pago de Factura ID['.$key.']
+                if (substr($obj->$key2,0,19) == 'Pago de Factura ID[')
+                {
+                    $enableEdit = false;
+                    $enableDelete = false;
+                }
+            }
+            
             if (!empty($arrayfields[$key]['checked'])) {
                 
                 if (!$i) $totalarray['nbfield'] ++;
                 
-                $key2 = str_replace('t.', '', $key);
-                $key2 = str_replace('c.', '', $key2);
                 if ($key2 == 'rowid')
                 {
                     $hiddenobjvaluesview='&amp;entity='.$obj->entity.
@@ -662,13 +679,15 @@ while ($i < min($num, $limit))
         '&amp;fk_supplier_account='.$obj->fk_supplier_account.
         '&amp;active='.$obj->active;
         
-        if ($permtowrite) {
+        //if ($permtowrite) {
+        if ($enableEdit) {
             print '<a href="supplieraccountmovement_card.php?action=edit&socid='.$socid.'&amp;id='.$obj->rowid.'&amp;page='.$page.$hiddenobjvaluesedit.'">';
             print img_edit();
             print '</a>';
         }
         
-        if ($permtodelete) {
+        //if ($permtodelete) {
+        if ($enableDelete) {
             print '<a href="supplieraccountmovement_card.php?action=delete&socid='.$socid.'&amp;id='.$obj->rowid.'&amp;page='.$page.'">';
             print img_delete();
             print '</a>';
